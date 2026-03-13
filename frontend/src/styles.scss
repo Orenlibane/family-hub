@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// Import Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&family=Varela+Round&display=swap');
+
+// RTL Support
+[dir="rtl"] {
+  text-align: right;
+}
+
+// Base styles
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: 'Assistant', sans-serif;
+}
+
+// Kid mode uses Varela Round
+.kid-mode {
+  font-family: 'Varela Round', sans-serif;
+}
+
+// Glassmorphism utilities
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+// Must-do task glow effect
+.must-do-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+  @apply border-2 border-kid-primary;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.9);
+  }
+}
+
+// Coin animation
+.coin-bounce {
+  animation: bounce-coin 0.5s ease-out;
+}
+
+@keyframes bounce-coin {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
+// Custom scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
