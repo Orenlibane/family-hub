@@ -12,10 +12,15 @@ export const routes: Routes = [
     path: 'join/:inviteCode',
     loadComponent: () => import('./pages/join/join.component').then(m => m.JoinComponent)
   },
+  {
+    path: 'join',
+    loadComponent: () => import('./pages/join/join.component').then(m => m.JoinComponent)
+  },
 
-  // Adult routes (Command Center)
+  // Adult routes (Command Center) - with layout wrapper
   {
     path: 'command-center',
+    loadComponent: () => import('./layouts/command-center-layout.component').then(m => m.CommandCenterLayoutComponent),
     canActivate: [authGuard, adultGuard],
     children: [
       {
@@ -45,9 +50,10 @@ export const routes: Routes = [
     ]
   },
 
-  // Kid routes (Playground)
+  // Kid routes (Playground) - with layout wrapper
   {
     path: 'playground',
+    loadComponent: () => import('./layouts/playground-layout.component').then(m => m.PlaygroundLayoutComponent),
     canActivate: [authGuard, kidGuard],
     children: [
       {
