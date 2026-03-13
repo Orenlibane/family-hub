@@ -35,6 +35,11 @@ app.use(cookieParser());
 // Initialize Socket.io
 initSocketServer(httpServer);
 
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API Routes
 app.use(routes);
 
