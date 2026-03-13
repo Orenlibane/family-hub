@@ -1,7 +1,7 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://family-hub-production.up.railway.app',
-  wsUrl: 'https://family-hub-production.up.railway.app',
-  googleClientId: '', // Add your Google OAuth client ID
+  apiUrl: '', // Same domain in production
+  wsUrl: '', // Same domain in production (will use relative WebSocket)
+  googleClientId: '1039524799131-2lbk28ivihe61oc1fkmrntkpmb70ttgv.apps.googleusercontent.com',
   vapidPublicKey: '', // Add your VAPID public key for push notifications
 };

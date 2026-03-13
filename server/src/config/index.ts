@@ -1,9 +1,17 @@
 import 'dotenv/config';
 
+// Railway provides DATABASE_URL automatically when you add a PostgreSQL plugin
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Railway provides RAILWAY_PUBLIC_DOMAIN for the deployed URL
+const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : null;
+
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
-  isDev: process.env.NODE_ENV !== 'production',
+  isDev: !isProduction,
 
   jwt: {
     secret: process.env.JWT_SECRET || 'dev-secret-change-me',
@@ -13,10 +21,12 @@ export const config = {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    callbackUrl: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3000/auth/google/callback'
+    callbackUrl: process.env.GOOGLE_CALLBACK_URL ||
+      (railwayUrl ? `${railwayUrl}/auth/google/callback` : 'http://localhost:3000/auth/google/callback')
   },
 
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:4200',
+  // In production, frontend is served from same domain
+  frontendUrl: process.env.FRONTEND_URL || railwayUrl || 'http://localhost:4200',
 
   vapid: {
     publicKey: process.env.VAPID_PUBLIC_KEY || '',
@@ -25,7 +35,9 @@ export const config = {
   },
 
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:4200',
+    origin: isProduction
+      ? (process.env.FRONTEND_URL || railwayUrl || true)
+      : 'http://localhost:4200',
     credentials: true
   }
 };

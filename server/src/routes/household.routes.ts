@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { authMiddleware, validate, requireAdmin, requireAdult } from '../middleware/index.js';
 import { prisma } from '../services/prisma.service.js';
+import { getString } from '../utils/helpers.js';
 
 const router = Router();
 
@@ -154,7 +155,9 @@ router.post('/invite', requireAdult, validate(inviteMemberSchema), async (req: R
  */
 router.post('/join/:inviteCode', async (req: Request, res: Response) => {
   try {
-    const { inviteCode } = req.params;
+    const inviteCode = getString(req.params.inviteCode);
+    if (!inviteCode) return res.status(400).json({ message: 'Invite code required' });
+
     const { role } = req.body;
 
     if (!['ADULT', 'KID'].includes(role)) {
@@ -202,7 +205,8 @@ router.post('/join/:inviteCode', async (req: Request, res: Response) => {
  */
 router.delete('/members/:userId', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = getString(req.params.userId);
+    if (!userId) return res.status(400).json({ message: 'User ID required' });
 
     // Can't remove yourself
     if (userId === req.user!.id) {
@@ -239,7 +243,9 @@ router.delete('/members/:userId', requireAdmin, async (req: Request, res: Respon
  */
 router.patch('/members/:userId/role', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
+    const userId = getString(req.params.userId);
+    if (!userId) return res.status(400).json({ message: 'User ID required' });
+
     const { role } = req.body;
 
     if (!['ADULT', 'KID'].includes(role)) {

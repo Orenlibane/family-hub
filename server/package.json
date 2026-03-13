@@ -1,12 +1,17 @@
 {
   "name": "mishpacha-hub-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "MishpachaHub Backend - Express + Socket.io + Prisma",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node dist/index.js",
+    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

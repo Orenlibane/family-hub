@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { TaskStatus, TaskCategory } from '@prisma/client';
 import { authMiddleware, validate, requireAdult } from '../middleware/index.js';
 import { prisma } from '../services/prisma.service.js';
 import { emitToHousehold } from '../services/socket.service.js';
+import { getString } from '../utils/helpers.js';
 
 const router = Router();
 
@@ -35,14 +37,17 @@ const updateTaskSchema = createTaskSchema.partial().extend({
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { status, assignedToId, category, isMustDo } = req.query;
+    const status = getString(req.query.status) as TaskStatus | undefined;
+    const assignedToId = getString(req.query.assignedToId);
+    const category = getString(req.query.category) as TaskCategory | undefined;
+    const isMustDo = req.query.isMustDo;
 
     const tasks = await prisma.task.findMany({
       where: {
         householdId: req.user!.householdId,
-        ...(status && { status: status as string }),
-        ...(assignedToId && { assignedToId: assignedToId as string }),
-        ...(category && { category: category as string }),
+        ...(status && { status }),
+        ...(assignedToId && { assignedToId }),
+        ...(category && { category }),
         ...(isMustDo !== undefined && { isMustDo: isMustDo === 'true' })
       },
       include: {
@@ -73,9 +78,12 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:id', async (req: Request, res: Response) => {
   try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Task ID required' });
+
     const task = await prisma.task.findFirst({
       where: {
-        id: req.params.id,
+        id,
         householdId: req.user!.householdId
       },
       include: {
@@ -141,10 +149,13 @@ router.post('/', requireAdult, validate(createTaskSchema), async (req: Request, 
  */
 router.patch('/:id', validate(updateTaskSchema), async (req: Request, res: Response) => {
   try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Task ID required' });
+
     // Verify task exists and belongs to household
     const existing = await prisma.task.findFirst({
       where: {
-        id: req.params.id,
+        id,
         householdId: req.user!.householdId
       }
     });
@@ -167,7 +178,7 @@ router.patch('/:id', validate(updateTaskSchema), async (req: Request, res: Respo
     }
 
     const task = await prisma.task.update({
-      where: { id: req.params.id },
+      where: { id },
       data: {
         ...req.body,
         dueDate: req.body.dueDate ? new Date(req.body.dueDate) : undefined
@@ -198,9 +209,12 @@ router.patch('/:id', validate(updateTaskSchema), async (req: Request, res: Respo
  */
 router.delete('/:id', requireAdult, async (req: Request, res: Response) => {
   try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Task ID required' });
+
     const task = await prisma.task.findFirst({
       where: {
-        id: req.params.id,
+        id,
         householdId: req.user!.householdId
       }
     });
@@ -210,7 +224,7 @@ router.delete('/:id', requireAdult, async (req: Request, res: Response) => {
     }
 
     await prisma.task.delete({
-      where: { id: req.params.id }
+      where: { id }
     });
 
     // Broadcast to household

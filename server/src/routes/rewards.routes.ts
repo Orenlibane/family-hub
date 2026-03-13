@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { RedemptionStatus } from '@prisma/client';
 import { authMiddleware, validate, requireAdult } from '../middleware/index.js';
 import { prisma } from '../services/prisma.service.js';
 import { emitToHousehold } from '../services/socket.service.js';
+import { getString } from '../utils/helpers.js';
 
 const router = Router();
 
@@ -26,7 +28,7 @@ const updateRewardSchema = createRewardSchema.partial().extend({
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { isActive } = req.query;
+    const isActive = req.query.isActive;
 
     const rewards = await prisma.reward.findMany({
       where: {
@@ -70,9 +72,12 @@ router.post('/', requireAdult, validate(createRewardSchema), async (req: Request
  */
 router.patch('/:id', requireAdult, validate(updateRewardSchema), async (req: Request, res: Response) => {
   try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Reward ID required' });
+
     const existing = await prisma.reward.findFirst({
       where: {
-        id: req.params.id,
+        id,
         householdId: req.user!.householdId
       }
     });
@@ -82,7 +87,7 @@ router.patch('/:id', requireAdult, validate(updateRewardSchema), async (req: Req
     }
 
     const reward = await prisma.reward.update({
-      where: { id: req.params.id },
+      where: { id },
       data: req.body
     });
 
@@ -99,9 +104,12 @@ router.patch('/:id', requireAdult, validate(updateRewardSchema), async (req: Req
  */
 router.delete('/:id', requireAdult, async (req: Request, res: Response) => {
   try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Reward ID required' });
+
     const existing = await prisma.reward.findFirst({
       where: {
-        id: req.params.id,
+        id,
         householdId: req.user!.householdId
       }
     });
@@ -111,7 +119,7 @@ router.delete('/:id', requireAdult, async (req: Request, res: Response) => {
     }
 
     await prisma.reward.delete({
-      where: { id: req.params.id }
+      where: { id }
     });
 
     res.status(204).send();
@@ -127,9 +135,12 @@ router.delete('/:id', requireAdult, async (req: Request, res: Response) => {
  */
 router.post('/:id/redeem', async (req: Request, res: Response) => {
   try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Reward ID required' });
+
     const reward = await prisma.reward.findFirst({
       where: {
-        id: req.params.id,
+        id,
         householdId: req.user!.householdId,
         isActive: true
       }
@@ -197,19 +208,20 @@ router.post('/:id/redeem', async (req: Request, res: Response) => {
  */
 router.get('/redemptions', async (req: Request, res: Response) => {
   try {
-    const { userId, status } = req.query;
+    const userId = getString(req.query.userId);
+    const status = getString(req.query.status) as RedemptionStatus | undefined;
 
     // Adults can see all, kids only their own
-    const filter: { userId?: string; status?: string } = {};
+    const filter: { userId?: string; status?: RedemptionStatus } = {};
 
     if (req.user!.role === 'KID') {
       filter.userId = req.user!.id;
     } else if (userId) {
-      filter.userId = userId as string;
+      filter.userId = userId;
     }
 
     if (status) {
-      filter.status = status as string;
+      filter.status = status;
     }
 
     const redemptions = await prisma.redemption.findMany({
@@ -243,14 +255,18 @@ router.get('/redemptions', async (req: Request, res: Response) => {
  */
 router.patch('/redemptions/:id', requireAdult, async (req: Request, res: Response) => {
   try {
-    const { status, rejectionReason } = req.body;
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Redemption ID required' });
+
+    const status = req.body.status as RedemptionStatus;
+    const { rejectionReason } = req.body;
 
     if (!['APPROVED', 'REJECTED', 'FULFILLED'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
     const existing = await prisma.redemption.findFirst({
-      where: { id: req.params.id },
+      where: { id },
       include: {
         reward: true,
         user: true
@@ -277,7 +293,7 @@ router.patch('/redemptions/:id', requireAdult, async (req: Request, res: Respons
     }
 
     const redemption = await prisma.redemption.update({
-      where: { id: req.params.id },
+      where: { id },
       data: {
         status,
         rejectionReason: status === 'REJECTED' ? rejectionReason : null,

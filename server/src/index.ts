@@ -1,11 +1,15 @@
 import express from 'express';
 import { createServer } from 'http';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { config } from './config/index.js';
 import { initSocketServer } from './services/socket.service.js';
 import routes from './routes/index.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const httpServer = createServer(app);
@@ -31,8 +35,22 @@ app.use(cookieParser());
 // Initialize Socket.io
 initSocketServer(httpServer);
 
-// Routes
+// API Routes
 app.use(routes);
+
+// Serve static frontend in production
+if (!config.isDev) {
+  const frontendPath = join(__dirname, '../../public');
+  app.use(express.static(frontendPath));
+
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/auth')) {
+      return next();
+    }
+    res.sendFile(join(frontendPath, 'index.html'));
+  });
+}
 
 // Error handling
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

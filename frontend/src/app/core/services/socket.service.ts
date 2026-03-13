@@ -55,7 +55,10 @@ export class SocketService implements OnDestroy {
       return;
     }
 
-    this.socket = io(environment.wsUrl, {
+    // In production, connect to same origin; in dev, use configured URL
+    const wsUrl = environment.wsUrl || window.location.origin;
+
+    this.socket = io(wsUrl, {
       auth: { token },
       reconnection: true,
       reconnectionAttempts: 5,
