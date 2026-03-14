@@ -53,8 +53,8 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    // Redirect to frontend
-    const redirectPath = isNew ? '/onboarding' : (user.role === 'KID' ? '/playground' : '/command-center');
+    // Redirect to frontend (everyone goes to command-center, playground on hold)
+    const redirectPath = isNew ? '/onboarding' : '/command-center';
     res.redirect(`${config.frontendUrl}${redirectPath}`);
   } catch (error) {
     console.error('[Auth] Google callback error:', error);
