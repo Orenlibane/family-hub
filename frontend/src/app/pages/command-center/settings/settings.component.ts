@@ -1344,4 +1344,8 @@ export class SettingsComponent {
       this.cdr.markForCheck();
     }, 3000);
   }
+
+  isUnicornTheme(): boolean {
+    return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
+  }
 }

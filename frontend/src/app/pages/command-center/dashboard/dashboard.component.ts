@@ -1,7 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { AuthService, SocketService } from '../../../core/services';
+import { AuthService, SocketService, ThemeService, UITheme } from '../../../core/services';
 import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
 
 @Component({
@@ -9,85 +9,101 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="cosmic-dashboard" dir="rtl">
-      <!-- Animated Stars Background -->
-      <div class="stars-container">
-        <div class="stars stars-1"></div>
-        <div class="stars stars-2"></div>
-        <div class="stars stars-3"></div>
-        <div class="nebula nebula-1"></div>
-        <div class="nebula nebula-2"></div>
-      </div>
+    <div class="dashboard" [class.cosmic-dashboard]="!isUnicornTheme()" [class.unicorn-dashboard]="isUnicornTheme()" dir="rtl">
+      <!-- Theme-Aware Background -->
+      @if (!isUnicornTheme()) {
+        <!-- Cosmic Stars Background -->
+        <div class="stars-container">
+          <div class="stars stars-1"></div>
+          <div class="stars stars-2"></div>
+          <div class="stars stars-3"></div>
+          <div class="nebula nebula-1"></div>
+          <div class="nebula nebula-2"></div>
+        </div>
+      } @else {
+        <!-- Unicorn/Magical Background -->
+        <div class="magical-bg">
+          <div class="clouds cloud-1"></div>
+          <div class="clouds cloud-2"></div>
+          <div class="rainbow-arc"></div>
+          <div class="sparkles"></div>
+          @for (i of [1,2,3,4,5]; track i) {
+            <div class="floating-magic" [style.animation-delay]="i * 1.5 + 's'">
+              {{ ['✨', '🌸', '💫', '⭐', '🦋'][i-1] }}
+            </div>
+          }
+        </div>
+      }
 
       <!-- Main Content -->
       <div class="relative z-10 p-6">
-        <!-- Header with Logo -->
+        <!-- Theme-Aware Header -->
         <header class="text-center mb-8">
-          <div class="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-full px-6 py-3 border border-white/20">
-            <span class="text-4xl animate-pulse">⭐</span>
+          <div class="header-pill" [class.cosmic-pill]="!isUnicornTheme()" [class.unicorn-pill]="isUnicornTheme()">
+            <span class="text-4xl animate-pulse">{{ getThemeIcon() }}</span>
             <div>
-              <h1 class="text-2xl font-bold text-white">מרכז המשפחה שלי</h1>
-              <p class="text-white/70 text-sm">שלום, {{ (user$ | async)?.name }}! 🚀</p>
+              <h1 class="text-2xl font-bold">מרכז המשפחה שלי</h1>
+              <p class="subtitle">שלום, {{ (user$ | async)?.name }}! {{ isUnicornTheme() ? '✨' : '🚀' }}</p>
             </div>
-            <span class="text-3xl">👨‍👩‍👧‍👦</span>
+            <span class="text-3xl">{{ getThemeMascot() }}</span>
           </div>
         </header>
 
-        <!-- Planet Stats Row -->
+        <!-- Stats Cards Row -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <!-- Tasks Planet -->
-          <div class="planet-widget planet-blue">
-            <div class="planet-ring"></div>
-            <div class="planet-content">
-              <span class="planet-icon">🪐</span>
-              <span class="planet-value">{{ (todayTasks$ | async)?.length || 0 }}</span>
-              <span class="planet-label">משימות היום</span>
+          <!-- Tasks Widget -->
+          <div class="stat-widget" [class.planet-widget]="!isUnicornTheme()" [class.cloud-widget]="isUnicornTheme()" [class.planet-blue]="!isUnicornTheme()" [class.cloud-pink]="isUnicornTheme()">
+            @if (!isUnicornTheme()) { <div class="planet-ring"></div> }
+            <div class="widget-content">
+              <span class="widget-icon">{{ isUnicornTheme() ? '📚' : '🪐' }}</span>
+              <span class="widget-value">{{ (todayTasks$ | async)?.length || 0 }}</span>
+              <span class="widget-label">משימות היום</span>
             </div>
-            <div class="planet-mascot">🤖</div>
+            <div class="widget-mascot">{{ currentTheme.assets.mascots[1] || '🧚' }}</div>
           </div>
 
-          <!-- Overdue Planet -->
-          <div class="planet-widget planet-red">
-            <div class="planet-ring"></div>
-            <div class="planet-content">
-              <span class="planet-icon">☄️</span>
-              <span class="planet-value">{{ (overdueTasks$ | async)?.length || 0 }}</span>
-              <span class="planet-label">באיחור</span>
+          <!-- Overdue Widget -->
+          <div class="stat-widget" [class.planet-widget]="!isUnicornTheme()" [class.cloud-widget]="isUnicornTheme()" [class.planet-red]="!isUnicornTheme()" [class.cloud-lavender]="isUnicornTheme()">
+            @if (!isUnicornTheme()) { <div class="planet-ring"></div> }
+            <div class="widget-content">
+              <span class="widget-icon">{{ isUnicornTheme() ? '⏰' : '☄️' }}</span>
+              <span class="widget-value">{{ (overdueTasks$ | async)?.length || 0 }}</span>
+              <span class="widget-label">באיחור</span>
             </div>
-            <div class="planet-mascot">🐿️</div>
+            <div class="widget-mascot">{{ isUnicornTheme() ? '🦋' : '🐿️' }}</div>
           </div>
 
-          <!-- Family Planet -->
-          <div class="planet-widget planet-purple">
-            <div class="planet-ring"></div>
-            <div class="planet-content">
-              <span class="planet-icon">🌍</span>
-              <span class="planet-value">{{ (memberCount$ | async) || 0 }}</span>
-              <span class="planet-label">בני משפחה</span>
+          <!-- Family Widget -->
+          <div class="stat-widget" [class.planet-widget]="!isUnicornTheme()" [class.cloud-widget]="isUnicornTheme()" [class.planet-purple]="!isUnicornTheme()" [class.cloud-mint]="isUnicornTheme()">
+            @if (!isUnicornTheme()) { <div class="planet-ring"></div> }
+            <div class="widget-content">
+              <span class="widget-icon">{{ isUnicornTheme() ? '👨‍👩‍👧‍👦' : '🌍' }}</span>
+              <span class="widget-value">{{ (memberCount$ | async) || 0 }}</span>
+              <span class="widget-label">בני משפחה</span>
             </div>
-            <div class="planet-mascot">🐨</div>
+            <div class="widget-mascot">{{ isUnicornTheme() ? '🌸' : '🐨' }}</div>
           </div>
 
-          <!-- Points Planet -->
-          <div class="planet-widget planet-gold">
-            <div class="planet-ring"></div>
-            <div class="planet-content">
-              <span class="planet-icon">⭐</span>
-              <span class="planet-value">{{ totalFamilyCoins }}</span>
-              <span class="planet-label">נקודות כוכב</span>
+          <!-- Points Widget -->
+          <div class="stat-widget" [class.planet-widget]="!isUnicornTheme()" [class.cloud-widget]="isUnicornTheme()" [class.planet-gold]="!isUnicornTheme()" [class.cloud-gold]="isUnicornTheme()">
+            @if (!isUnicornTheme()) { <div class="planet-ring"></div> }
+            <div class="widget-content">
+              <span class="widget-icon">{{ isUnicornTheme() ? '👑' : '⭐' }}</span>
+              <span class="widget-value">{{ totalFamilyCoins }}</span>
+              <span class="widget-label">{{ isUnicornTheme() ? 'כתרים קסומים' : 'נקודות כוכב' }}</span>
             </div>
-            <div class="planet-mascot crown">🐿️</div>
+            <div class="widget-mascot crown">{{ currentTheme.assets.mascots[0] || '🦄' }}</div>
           </div>
         </div>
 
         <!-- Main Widgets Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <!-- Tasks Widget (Space Console) -->
-          <section class="console-widget col-span-1 lg:col-span-2">
+          <!-- Tasks Widget -->
+          <section class="console-widget col-span-1 lg:col-span-2" [class.unicorn-console]="isUnicornTheme()">
             <div class="console-header">
               <div class="console-title">
-                <span class="console-icon">🤖</span>
-                <h2>משימות חשובות</h2>
+                <span class="console-icon">{{ isUnicornTheme() ? '✨' : '🤖' }}</span>
+                <h2>משימות חשובות{{ isUnicornTheme() ? '!' : '' }}</h2>
               </div>
               <a routerLink="/command-center/tasks" class="console-link">
                 צפה בהכל <span>→</span>
@@ -97,10 +113,10 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
               @if ((mustDoTasks$ | async)?.length) {
                 <ul class="task-list">
                   @for (task of mustDoTasks$ | async; track task.id) {
-                    <li class="task-card">
-                      <div class="task-robot">🤖</div>
+                    <li class="task-card" [class.unicorn-task]="isUnicornTheme()">
+                      <div class="task-helper">{{ isUnicornTheme() ? '🧚' : '🤖' }}</div>
                       <div class="task-checkbox">
-                        <div class="star-check">⭐</div>
+                        <div class="star-check">{{ isUnicornTheme() ? '💖' : '⭐' }}</div>
                       </div>
                       <div class="task-content">
                         <p class="task-title">{{ task.title }}</p>
@@ -112,12 +128,12 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
                         }
                       </div>
                       <div class="task-reward">
-                        <span class="coin-glow">🪙</span>
+                        <span class="coin-glow">{{ isUnicornTheme() ? '👑' : '🪙' }}</span>
                         <span>{{ task.coinReward }}</span>
                       </div>
                       <div class="task-priority">
                         @for (star of [1,2,3]; track star) {
-                          <span class="priority-star" [class.active]="star <= (task.isMustDo ? 3 : 1)">⭐</span>
+                          <span class="priority-star" [class.active]="star <= (task.isMustDo ? 3 : 1)">{{ isUnicornTheme() ? '💫' : '⭐' }}</span>
                         }
                       </div>
                     </li>
@@ -125,10 +141,10 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
                 </ul>
               } @else {
                 <div class="empty-state">
-                  <div class="empty-rocket">🚀</div>
-                  <p class="empty-text">אין משימות דחופות!</p>
-                  <p class="empty-subtext">הכל מסודר בחלל 🌟</p>
-                  <div class="chinchilla-celebrate">🐿️✨</div>
+                  <div class="empty-hero">{{ isUnicornTheme() ? '🦄' : '🚀' }}</div>
+                  <p class="empty-text">{{ isUnicornTheme() ? 'הכל מסודר! קח פסק זמן קסום' : 'אין משימות דחופות!' }}</p>
+                  <p class="empty-subtext">{{ isUnicornTheme() ? '✨ 🌈 ✨' : 'הכל מסודר בחלל 🌟' }}</p>
+                  <div class="celebrate-mascot">{{ currentTheme.assets.mascots[0] }}✨</div>
                 </div>
               }
             </div>
@@ -355,8 +371,9 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
     </div>
   `,
   styles: [`
-    /* ========== COSMIC THEME VARIABLES ========== */
+    /* ========== THEME VARIABLES ========== */
     :host {
+      /* Cosmic Theme */
       --space-dark: #0a0a1a;
       --space-deep: #12122a;
       --nebula-purple: #6b21a8;
@@ -369,14 +386,315 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       --planet-green: #10b981;
       --planet-orange: #f97316;
       --glow-cyan: #22d3ee;
+
+      /* Unicorn Theme */
+      --unicorn-pink: #ec4899;
+      --unicorn-lavender: #a855f7;
+      --unicorn-mint: #5eead4;
+      --unicorn-peach: #fda4af;
+      --unicorn-gold: #fbbf24;
+      --unicorn-sky: #7dd3fc;
+      --unicorn-bg: linear-gradient(135deg, #fdf2f8 0%, #fae8ff 30%, #e0f2fe 70%, #fdf2f8 100%);
     }
 
-    /* ========== COSMIC DASHBOARD CONTAINER ========== */
-    .cosmic-dashboard {
+    /* ========== BASE DASHBOARD CONTAINER ========== */
+    .dashboard {
       min-height: 100vh;
-      background: linear-gradient(135deg, var(--space-dark) 0%, var(--space-deep) 50%, #1a1a3a 100%);
       position: relative;
       overflow-x: hidden;
+    }
+
+    /* ========== COSMIC DASHBOARD ========== */
+    .cosmic-dashboard {
+      background: linear-gradient(135deg, var(--space-dark) 0%, var(--space-deep) 50%, #1a1a3a 100%);
+    }
+
+    /* ========== UNICORN/MAGICAL DASHBOARD ========== */
+    .unicorn-dashboard {
+      background: var(--unicorn-bg);
+    }
+
+    .unicorn-dashboard .header-pill,
+    .unicorn-dashboard .console-widget,
+    .unicorn-dashboard .stat-widget {
+      color: #1f2937;
+    }
+
+    .unicorn-dashboard h1,
+    .unicorn-dashboard h2,
+    .unicorn-dashboard h3 {
+      color: #581c87;
+    }
+
+    .unicorn-dashboard .subtitle,
+    .unicorn-dashboard p {
+      color: #6b7280;
+    }
+
+    /* Unicorn Header */
+    .unicorn-pill {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border: 2px solid rgba(236, 72, 153, 0.3) !important;
+      box-shadow: 0 8px 32px rgba(236, 72, 153, 0.15) !important;
+    }
+
+    /* Cosmic Header */
+    .cosmic-pill {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .cosmic-pill h1,
+    .cosmic-pill .subtitle {
+      color: white;
+    }
+
+    .cosmic-pill .subtitle {
+      opacity: 0.7;
+    }
+
+    /* ========== MAGICAL BACKGROUND ========== */
+    .magical-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .clouds {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background-repeat: repeat-x;
+      opacity: 0.6;
+    }
+
+    .cloud-1 {
+      background: radial-gradient(ellipse 120px 80px at center, rgba(255,255,255,0.9) 0%, transparent 70%),
+                  radial-gradient(ellipse 100px 60px at 200px 50px, rgba(255,255,255,0.8) 0%, transparent 70%),
+                  radial-gradient(ellipse 80px 50px at 400px 30px, rgba(255,255,255,0.85) 0%, transparent 70%);
+      background-size: 600px 150px;
+      animation: clouds-float 60s linear infinite;
+      top: 10%;
+    }
+
+    .cloud-2 {
+      background: radial-gradient(ellipse 100px 70px at center, rgba(255,255,255,0.85) 0%, transparent 70%),
+                  radial-gradient(ellipse 90px 55px at 150px 40px, rgba(255,255,255,0.7) 0%, transparent 70%);
+      background-size: 500px 120px;
+      animation: clouds-float 80s linear infinite reverse;
+      top: 60%;
+    }
+
+    @keyframes clouds-float {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(100%); }
+    }
+
+    .rainbow-arc {
+      position: absolute;
+      top: -200px;
+      left: -100px;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 180deg,
+        #ef4444 0deg,
+        #f97316 30deg,
+        #fbbf24 60deg,
+        #22c55e 90deg,
+        #3b82f6 120deg,
+        #8b5cf6 150deg,
+        transparent 180deg
+      );
+      opacity: 0.3;
+      filter: blur(30px);
+    }
+
+    .sparkles {
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(2px 2px at 10% 20%, rgba(236,72,153,0.8) 0%, transparent 100%),
+        radial-gradient(2px 2px at 30% 40%, rgba(168,85,247,0.6) 0%, transparent 100%),
+        radial-gradient(3px 3px at 50% 15%, rgba(251,191,36,0.9) 0%, transparent 100%),
+        radial-gradient(2px 2px at 70% 60%, rgba(236,72,153,0.7) 0%, transparent 100%),
+        radial-gradient(2px 2px at 90% 30%, rgba(168,85,247,0.8) 0%, transparent 100%);
+      background-size: 100% 100%;
+      animation: sparkle-twinkle 3s ease-in-out infinite;
+    }
+
+    @keyframes sparkle-twinkle {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .floating-magic {
+      position: absolute;
+      font-size: 2rem;
+      animation: magic-float 8s ease-in-out infinite;
+      opacity: 0.7;
+    }
+
+    .floating-magic:nth-child(1) { top: 15%; left: 10%; }
+    .floating-magic:nth-child(2) { top: 25%; right: 15%; }
+    .floating-magic:nth-child(3) { top: 50%; left: 5%; }
+    .floating-magic:nth-child(4) { top: 70%; right: 10%; }
+    .floating-magic:nth-child(5) { top: 85%; left: 20%; }
+
+    @keyframes magic-float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      25% { transform: translateY(-20px) rotate(5deg); }
+      50% { transform: translateY(-10px) rotate(-5deg); }
+      75% { transform: translateY(-25px) rotate(3deg); }
+    }
+
+    /* ========== CLOUD WIDGETS (Unicorn Theme) ========== */
+    .cloud-widget {
+      position: relative;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: 24px 16px;
+      border: 2px solid rgba(255,255,255,0.8);
+      text-align: center;
+      overflow: hidden;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    }
+
+    .cloud-widget:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 40px rgba(236,72,153,0.15);
+    }
+
+    .cloud-widget.cloud-pink {
+      border-color: rgba(236,72,153,0.3);
+      background: linear-gradient(135deg, rgba(253,242,248,0.95), rgba(255,255,255,0.95));
+    }
+
+    .cloud-widget.cloud-lavender {
+      border-color: rgba(168,85,247,0.3);
+      background: linear-gradient(135deg, rgba(250,245,255,0.95), rgba(255,255,255,0.95));
+    }
+
+    .cloud-widget.cloud-mint {
+      border-color: rgba(94,234,212,0.3);
+      background: linear-gradient(135deg, rgba(240,253,250,0.95), rgba(255,255,255,0.95));
+    }
+
+    .cloud-widget.cloud-gold {
+      border-color: rgba(251,191,36,0.3);
+      background: linear-gradient(135deg, rgba(254,252,232,0.95), rgba(255,255,255,0.95));
+    }
+
+    .cloud-widget .widget-icon {
+      display: block;
+      font-size: 2.5rem;
+      margin-bottom: 8px;
+      animation: gentle-bounce 2s ease-in-out infinite;
+    }
+
+    @keyframes gentle-bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .cloud-widget .widget-value {
+      display: block;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #581c87;
+    }
+
+    .cloud-widget .widget-label {
+      display: block;
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .cloud-widget .widget-mascot {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      font-size: 1.25rem;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    /* ========== UNICORN CONSOLE ========== */
+    .unicorn-console {
+      background: rgba(255,255,255,0.9) !important;
+      border: 2px solid rgba(236,72,153,0.2) !important;
+    }
+
+    .unicorn-console .console-header {
+      background: linear-gradient(135deg, rgba(253,242,248,0.8), rgba(250,245,255,0.8)) !important;
+      border-bottom: 1px solid rgba(236,72,153,0.1) !important;
+    }
+
+    .unicorn-console .console-title h2 {
+      color: #581c87 !important;
+    }
+
+    .unicorn-console .console-link {
+      color: var(--unicorn-pink) !important;
+    }
+
+    .unicorn-task {
+      background: linear-gradient(135deg, rgba(253,242,248,0.5), rgba(250,245,255,0.3)) !important;
+      border-color: rgba(236,72,153,0.2) !important;
+      animation: none !important;
+      box-shadow: 0 4px 15px rgba(236,72,153,0.1) !important;
+    }
+
+    .unicorn-task .task-title {
+      color: #1f2937 !important;
+    }
+
+    .unicorn-task .task-assignee {
+      color: #6b7280 !important;
+    }
+
+    .unicorn-task .task-reward {
+      color: var(--unicorn-pink) !important;
+    }
+
+    /* Unicorn Empty State */
+    .unicorn-dashboard .empty-state {
+      background: rgba(255,255,255,0.5);
+      border-radius: 24px;
+      padding: 40px;
+    }
+
+    .unicorn-dashboard .empty-hero {
+      font-size: 5rem !important;
+      animation: unicorn-prance 2s ease-in-out infinite !important;
+    }
+
+    @keyframes unicorn-prance {
+      0%, 100% { transform: translateY(0) rotate(-5deg); }
+      50% { transform: translateY(-15px) rotate(5deg); }
+    }
+
+    .unicorn-dashboard .empty-text {
+      color: #581c87 !important;
+    }
+
+    .unicorn-dashboard .empty-subtext {
+      color: #9333ea !important;
+    }
+
+    /* Header Pill Base */
+    .header-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      backdrop-filter: blur(12px);
     }
 
     /* ========== ANIMATED STARS ========== */
@@ -493,19 +811,19 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       transform: translate(-50%, -50%) rotateX(70deg);
     }
 
-    .planet-content {
+    .widget-content, .planet-content {
       position: relative;
       z-index: 1;
     }
 
-    .planet-icon {
+    .widget-icon, .planet-icon {
       display: block;
       font-size: 2.5rem;
       margin-bottom: 8px;
       animation: float 3s ease-in-out infinite;
     }
 
-    .planet-value {
+    .widget-value, .planet-value {
       display: block;
       font-size: 2rem;
       font-weight: 800;
@@ -513,14 +831,14 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       text-shadow: 0 0 20px currentColor;
     }
 
-    .planet-label {
+    .widget-label, .planet-label {
       display: block;
       font-size: 0.75rem;
       color: rgba(255,255,255,0.7);
       margin-top: 4px;
     }
 
-    .planet-mascot {
+    .widget-mascot, .planet-mascot {
       position: absolute;
       bottom: 8px;
       left: 8px;
@@ -528,7 +846,7 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       animation: bounce 2s ease-in-out infinite;
     }
 
-    .planet-mascot.crown::before {
+    .widget-mascot.crown::before, .planet-mascot.crown::before {
       content: '👑';
       position: absolute;
       top: -12px;
@@ -643,12 +961,12 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       50% { box-shadow: 0 0 25px rgba(239,68,68,0.5); }
     }
 
-    .task-robot {
+    .task-helper, .task-robot {
       font-size: 1.5rem;
-      animation: robot-work 1s ease-in-out infinite;
+      animation: helper-work 1s ease-in-out infinite;
     }
 
-    @keyframes robot-work {
+    @keyframes helper-work {
       0%, 100% { transform: rotate(-5deg); }
       50% { transform: rotate(5deg); }
     }
@@ -749,12 +1067,12 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       padding: 24px 16px;
     }
 
-    .empty-rocket {
+    .empty-hero, .empty-rocket {
       font-size: 4rem;
-      animation: rocket-fly 2s ease-in-out infinite;
+      animation: hero-fly 2s ease-in-out infinite;
     }
 
-    @keyframes rocket-fly {
+    @keyframes hero-fly {
       0%, 100% { transform: translateY(0) rotate(-10deg); }
       50% { transform: translateY(-15px) rotate(10deg); }
     }
@@ -778,7 +1096,7 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       margin-bottom: 12px;
     }
 
-    .chinchilla-celebrate, .chinchilla-shop {
+    .celebrate-mascot, .chinchilla-celebrate, .chinchilla-shop {
       font-size: 2rem;
       margin-top: 16px;
       animation: bounce 1.5s ease-in-out infinite;
@@ -1407,6 +1725,8 @@ export class DashboardComponent {
   private readonly householdStore = inject(HouseholdStore);
   private readonly rewardsStore = inject(RewardsStore);
   private readonly socketService = inject(SocketService);
+  private readonly themeService = inject(ThemeService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   user$ = this.authService.user$;
   todayTasks$ = this.tasksStore.todayTasks$;
@@ -1416,22 +1736,40 @@ export class DashboardComponent {
   memberCount$ = this.householdStore.memberCount$;
   pendingRedemptions$ = this.rewardsStore.pendingRedemptions$;
   connected$ = this.socketService.connected$;
+  currentTheme$ = this.themeService.currentTheme$;
 
   totalFamilyCoins = 0;
-  progressPercent = 65; // TODO: Calculate from actual data
+  progressPercent = 65;
+  currentTheme: UITheme = this.themeService.getCurrentTheme();
 
   constructor() {
     this.tasksStore.loadTasks();
     this.householdStore.loadHousehold();
     this.rewardsStore.loadRedemptions();
 
-    // Calculate total family coins
     this.members$.subscribe(members => {
       this.totalFamilyCoins = members.reduce((sum, m) => sum + (m.famCoins || 0), 0);
+    });
+
+    this.currentTheme$.subscribe(theme => {
+      this.currentTheme = theme;
+      this.cdr.markForCheck();
     });
   }
 
   getMemberColor(role: string): string {
     return role === 'ADULT' ? 'parent' : 'child';
+  }
+
+  isUnicornTheme(): boolean {
+    return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
+  }
+
+  getThemeMascot(): string {
+    return this.currentTheme.assets.mascots[0] || '🦄';
+  }
+
+  getThemeIcon(): string {
+    return this.currentTheme.assets.decorations[0] || '⭐';
   }
 }

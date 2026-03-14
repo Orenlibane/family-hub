@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HouseholdStore } from '../../../core/stores';
-import { AuthService } from '../../../core/services';
+import { AuthService, ThemeService, UITheme } from '../../../core/services';
 
 @Component({
   selector: 'app-family',
@@ -822,6 +822,7 @@ import { AuthService } from '../../../core/services';
 export class FamilyComponent {
   private readonly householdStore = inject(HouseholdStore);
   private readonly authService = inject(AuthService);
+  private readonly themeService = inject(ThemeService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   household$ = this.authService.household$;
@@ -829,10 +830,19 @@ export class FamilyComponent {
   memberCount$ = this.householdStore.memberCount$;
   user$ = this.authService.user$;
 
+  currentTheme: UITheme = this.themeService.getCurrentTheme();
   showCopyToast = false;
 
   constructor() {
     this.householdStore.loadHousehold();
+    this.themeService.currentTheme$.subscribe(theme => {
+      this.currentTheme = theme;
+      this.cdr.markForCheck();
+    });
+  }
+
+  isUnicornTheme(): boolean {
+    return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
   }
 
   copyInviteLink(): void {

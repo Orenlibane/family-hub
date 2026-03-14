@@ -1,7 +1,8 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RewardsStore } from '../../../core/stores';
+import { ThemeService, UITheme } from '../../../core/services';
 import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models';
 
 @Component({
@@ -991,19 +992,30 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
 })
 export class RewardsComponent {
   private readonly rewardsStore = inject(RewardsStore);
+  private readonly themeService = inject(ThemeService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   rewards$ = this.rewardsStore.rewards$;
   redemptions$ = this.rewardsStore.redemptions$;
   pendingRedemptions$ = this.rewardsStore.pendingRedemptions$;
 
+  currentTheme: UITheme = this.themeService.getCurrentTheme();
   activeTab: 'rewards' | 'redemptions' = 'rewards';
   showModal = false;
   editingReward: Reward | null = null;
   rewardForm: Partial<CreateRewardDto & { isActive: boolean }> = this.getEmptyForm();
 
+  isUnicornTheme(): boolean {
+    return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
+  }
+
   constructor() {
     this.rewardsStore.loadRewards();
     this.rewardsStore.loadRedemptions();
+    this.themeService.currentTheme$.subscribe(theme => {
+      this.currentTheme = theme;
+      this.cdr.markForCheck();
+    });
   }
 
   openCreateModal(): void {

@@ -1,8 +1,8 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TasksStore, HouseholdStore } from '../../../core/stores';
-import { AuthService } from '../../../core/services';
+import { AuthService, ThemeService, UITheme } from '../../../core/services';
 import { Task, CreateTaskDto, TaskCategory, TaskStatus } from '../../../core/models';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
 
@@ -11,36 +11,48 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="tasks-page" dir="rtl">
-      <!-- Space Background -->
-      <div class="space-bg">
-        <div class="stars"></div>
-        <div class="nebula nebula-1"></div>
-        <div class="nebula nebula-2"></div>
-        @for (i of [1,2,3,4,5]; track i) {
-          <div class="floating-element" [style.animation-delay]="i * 2 + 's'">
-            {{ ['🪐', '⭐', '🌙', '☄️', '🛸'][i-1] }}
-          </div>
-        }
-      </div>
+    <div class="tasks-page" [class.unicorn-theme]="isUnicornTheme()" dir="rtl">
+      <!-- Theme-Aware Background -->
+      @if (!isUnicornTheme()) {
+        <div class="space-bg">
+          <div class="stars"></div>
+          <div class="nebula nebula-1"></div>
+          <div class="nebula nebula-2"></div>
+          @for (i of [1,2,3,4,5]; track i) {
+            <div class="floating-element" [style.animation-delay]="i * 2 + 's'">
+              {{ ['🪐', '⭐', '🌙', '☄️', '🛸'][i-1] }}
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="magical-bg">
+          <div class="clouds"></div>
+          <div class="rainbow-arc"></div>
+          @for (i of [1,2,3,4,5]; track i) {
+            <div class="floating-element" [style.animation-delay]="i * 1.5 + 's'">
+              {{ ['✨', '🌸', '🦋', '💫', '🌈'][i-1] }}
+            </div>
+          }
+        </div>
+      }
 
       <!-- Header Panel -->
       <header class="header-panel">
         <div class="header-content">
           <div class="header-title">
-            <span class="header-icon">✅</span>
+            <span class="header-icon">{{ isUnicornTheme() ? '📚' : '✅' }}</span>
             <div>
-              <h1>תחנת המשימות</h1>
+              <h1>{{ isUnicornTheme() ? 'ספר המשימות הקסום' : 'תחנת המשימות' }}</h1>
               <p>מרכז המשפחה שלי</p>
             </div>
           </div>
           <div class="header-mascots">
-            <span class="mascot robot" title="רובוט עוזר">🤖</span>
-            <span class="mascot chinchilla">🐹</span>
+            <span class="mascot">{{ currentTheme.assets.mascots[0] }}</span>
+            <span class="mascot">{{ currentTheme.assets.mascots[1] || '🧚' }}</span>
           </div>
         </div>
         <button class="create-btn" (click)="openCreateModal()">
-          <span>✨</span> משימה חדשה
+          <span>✨</span> {{ isUnicornTheme() ? 'משימה קסומה חדשה' : 'משימה חדשה' }}
         </button>
       </header>
 
@@ -336,6 +348,101 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
       min-height: 100vh;
       padding: 24px;
       position: relative;
+    }
+
+    /* Unicorn Theme Overrides */
+    .tasks-page.unicorn-theme {
+      color: #1f2937;
+    }
+
+    .tasks-page.unicorn-theme .header-panel,
+    .tasks-page.unicorn-theme .filters-panel,
+    .tasks-page.unicorn-theme .task-card {
+      background: rgba(255,255,255,0.9);
+      border-color: rgba(236,72,153,0.2);
+    }
+
+    .tasks-page.unicorn-theme h1,
+    .tasks-page.unicorn-theme h2,
+    .tasks-page.unicorn-theme h3 {
+      color: #581c87;
+    }
+
+    .tasks-page.unicorn-theme p,
+    .tasks-page.unicorn-theme .task-description {
+      color: #6b7280;
+    }
+
+    .tasks-page.unicorn-theme .create-btn {
+      background: linear-gradient(135deg, #ec4899, #a855f7);
+    }
+
+    .tasks-page.unicorn-theme .cosmic-select {
+      background: rgba(255,255,255,0.9);
+      color: #1f2937;
+      border-color: rgba(236,72,153,0.3);
+    }
+
+    .tasks-page.unicorn-theme .planet-btn.active {
+      background: linear-gradient(135deg, #ec4899, #a855f7);
+    }
+
+    .magical-bg {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #fdf2f8 0%, #fae8ff 30%, #e0f2fe 70%, #fdf2f8 100%);
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .magical-bg .clouds {
+      position: absolute;
+      width: 200%;
+      height: 100%;
+      background:
+        radial-gradient(ellipse 100px 60px at 10% 20%, rgba(255,255,255,0.8) 0%, transparent 70%),
+        radial-gradient(ellipse 120px 70px at 30% 60%, rgba(255,255,255,0.7) 0%, transparent 70%),
+        radial-gradient(ellipse 80px 50px at 60% 30%, rgba(255,255,255,0.9) 0%, transparent 70%),
+        radial-gradient(ellipse 100px 60px at 80% 70%, rgba(255,255,255,0.8) 0%, transparent 70%);
+      animation: clouds-drift 60s linear infinite;
+    }
+
+    @keyframes clouds-drift {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    .magical-bg .rainbow-arc {
+      position: absolute;
+      top: -150px;
+      left: -50px;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 180deg,
+        #ef4444, #f97316, #fbbf24, #22c55e, #3b82f6, #8b5cf6, transparent
+      );
+      opacity: 0.25;
+      filter: blur(30px);
+    }
+
+    .magical-bg .floating-element {
+      position: absolute;
+      font-size: 2rem;
+      animation: magic-drift 10s ease-in-out infinite;
+      opacity: 0.7;
+    }
+
+    .magical-bg .floating-element:nth-child(3) { top: 10%; left: 15%; }
+    .magical-bg .floating-element:nth-child(4) { top: 30%; right: 10%; }
+    .magical-bg .floating-element:nth-child(5) { top: 50%; left: 5%; }
+    .magical-bg .floating-element:nth-child(6) { top: 70%; right: 15%; }
+    .magical-bg .floating-element:nth-child(7) { top: 85%; left: 25%; }
+
+    @keyframes magic-drift {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-20px) rotate(10deg); }
     }
 
     /* Space Background */
@@ -1172,9 +1279,26 @@ export class TasksComponent {
   private readonly tasksStore = inject(TasksStore);
   private readonly householdStore = inject(HouseholdStore);
   private readonly authService = inject(AuthService);
+  private readonly themeService = inject(ThemeService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   private readonly statusFilter$ = new BehaviorSubject<TaskStatus | ''>('');
   private readonly categoryFilter$ = new BehaviorSubject<TaskCategory | ''>('');
+
+  currentTheme: UITheme = this.themeService.getCurrentTheme();
+
+  constructor() {
+    this.tasksStore.loadTasks();
+    this.householdStore.loadHousehold();
+    this.themeService.currentTheme$.subscribe(theme => {
+      this.currentTheme = theme;
+      this.cdr.markForCheck();
+    });
+  }
+
+  isUnicornTheme(): boolean {
+    return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
+  }
 
   currentStatusFilter$ = this.statusFilter$.asObservable();
   currentCategoryFilter$ = this.categoryFilter$.asObservable();
@@ -1216,11 +1340,6 @@ export class TasksComponent {
   ];
 
   categories: TaskCategory[] = ['CHORE', 'HOMEWORK', 'ERRAND', 'HEALTH', 'SOCIAL', 'OTHER'];
-
-  constructor() {
-    this.tasksStore.loadTasks();
-    this.householdStore.loadHousehold();
-  }
 
   filterByStatus(status: TaskStatus | ''): void {
     this.statusFilter$.next(status);

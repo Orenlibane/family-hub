@@ -1,8 +1,9 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, map } from 'rxjs';
 import { TasksStore } from '../../../core/stores';
+import { ThemeService, UITheme } from '../../../core/services';
 
 type EventCategory = 'SCHOOL' | 'WORK' | 'FAMILY' | 'MEDICAL' | 'ACTIVITY' | 'TASK';
 
@@ -1089,8 +1090,23 @@ interface CalendarDay {
 })
 export class CalendarComponent {
   private readonly tasksStore = inject(TasksStore);
+  private readonly themeService = inject(ThemeService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  currentTheme: UITheme = this.themeService.getCurrentTheme();
 
   hebrewDays = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+  constructor() {
+    this.themeService.currentTheme$.subscribe(theme => {
+      this.currentTheme = theme;
+      this.cdr.markForCheck();
+    });
+  }
+
+  isUnicornTheme(): boolean {
+    return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
+  }
 
   hebrewMonths = [
     'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
