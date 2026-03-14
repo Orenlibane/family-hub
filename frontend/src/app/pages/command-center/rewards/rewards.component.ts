@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RewardsStore } from '../../../core/stores';
-import { ThemeService, UITheme } from '../../../core/services';
+import { ThemeService, UITheme, AuthService } from '../../../core/services';
 import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models';
 
 @Component({
@@ -26,13 +26,15 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
             <span class="header-icon">🎁</span>
             <div>
               <h1>חנות פרסים</h1>
-              <p>נהל פרסים ואשר בקשות</p>
+              <p>{{ (isAdult$ | async) ? 'נהל פרסים ואשר בקשות' : 'בחר פרס ובקש אותו!' }}</p>
             </div>
             <span class="header-mascot">🐿️</span>
           </div>
-          <button (click)="openCreateModal()" class="add-btn">
-            <span>✨</span> פרס חדש
-          </button>
+          @if (isAdult$ | async) {
+            <button (click)="openCreateModal()" class="add-btn">
+              <span>✨</span> פרס חדש
+            </button>
+          }
         </header>
 
         <!-- Tabs -->
@@ -73,10 +75,12 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
                     }
                     <div class="icon-ring"></div>
                   </div>
-                  <div class="card-actions">
-                    <button class="action-btn edit" (click)="openEditModal(reward)">✏️</button>
-                    <button class="action-btn delete" (click)="deleteReward(reward)">🗑️</button>
-                  </div>
+                  @if (isAdult$ | async) {
+                    <div class="card-actions">
+                      <button class="action-btn edit" (click)="openEditModal(reward)">✏️</button>
+                      <button class="action-btn delete" (click)="deleteReward(reward)">🗑️</button>
+                    </div>
+                  }
                 </div>
                 <h3 class="reward-name">{{ reward.name }}</h3>
                 @if (reward.description) {
@@ -99,10 +103,14 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
               <div class="empty-state">
                 <div class="empty-icon">🎁</div>
                 <h3>אין פרסים עדיין</h3>
-                <p>צור פרסים שהמשפחה תוכל להרוויח!</p>
-                <button (click)="openCreateModal()" class="create-btn">
-                  <span>✨</span> צור פרס ראשון
-                </button>
+                @if (isAdult$ | async) {
+                  <p>צור פרסים שהמשפחה תוכל להרוויח!</p>
+                  <button (click)="openCreateModal()" class="create-btn">
+                    <span>✨</span> צור פרס ראשון
+                  </button>
+                } @else {
+                  <p>עוד אין פרסים זמינים. שאל את ההורים להוסיף!</p>
+                }
                 <div class="empty-mascot">🐿️✨</div>
               </div>
             }
@@ -125,25 +133,44 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
                   <span>⭐</span> {{ redemption.coinsSpent }}
                 </span>
                 <div class="redemption-actions">
-                  @switch (redemption.status) {
-                    @case ('PENDING') {
-                      <button class="status-btn approve" (click)="approveRedemption(redemption)">
-                        ✅ אשר
-                      </button>
-                      <button class="status-btn reject" (click)="rejectRedemption(redemption)">
-                        ❌ דחה
-                      </button>
+                  @if (isAdult$ | async) {
+                    <!-- Adults can manage redemptions -->
+                    @switch (redemption.status) {
+                      @case ('PENDING') {
+                        <button class="status-btn approve" (click)="approveRedemption(redemption)">
+                          ✅ אשר
+                        </button>
+                        <button class="status-btn reject" (click)="rejectRedemption(redemption)">
+                          ❌ דחה
+                        </button>
+                      }
+                      @case ('APPROVED') {
+                        <button class="status-btn fulfill" (click)="fulfillRedemption(redemption)">
+                          🎉 בוצע
+                        </button>
+                      }
+                      @case ('FULFILLED') {
+                        <span class="status-badge fulfilled">✅ בוצע</span>
+                      }
+                      @case ('REJECTED') {
+                        <span class="status-badge rejected">❌ נדחה</span>
+                      }
                     }
-                    @case ('APPROVED') {
-                      <button class="status-btn fulfill" (click)="fulfillRedemption(redemption)">
-                        🎉 בוצע
-                      </button>
-                    }
-                    @case ('FULFILLED') {
-                      <span class="status-badge fulfilled">✅ בוצע</span>
-                    }
-                    @case ('REJECTED') {
-                      <span class="status-badge rejected">❌ נדחה</span>
+                  } @else {
+                    <!-- Kids only see status -->
+                    @switch (redemption.status) {
+                      @case ('PENDING') {
+                        <span class="status-badge pending">⏳ ממתין</span>
+                      }
+                      @case ('APPROVED') {
+                        <span class="status-badge approved">✅ אושר</span>
+                      }
+                      @case ('FULFILLED') {
+                        <span class="status-badge fulfilled">🎉 התקבל</span>
+                      }
+                      @case ('REJECTED') {
+                        <span class="status-badge rejected">❌ נדחה</span>
+                      }
                     }
                   }
                 </div>
@@ -743,6 +770,16 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
       font-weight: 600;
     }
 
+    .status-badge.pending {
+      background: rgba(251,191,36,0.2);
+      color: #f59e0b;
+    }
+
+    .status-badge.approved {
+      background: rgba(59,130,246,0.2);
+      color: #3b82f6;
+    }
+
     .status-badge.fulfilled {
       background: rgba(16,185,129,0.2);
       color: #10b981;
@@ -1132,11 +1169,13 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
 export class RewardsComponent {
   private readonly rewardsStore = inject(RewardsStore);
   private readonly themeService = inject(ThemeService);
+  private readonly authService = inject(AuthService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   rewards$ = this.rewardsStore.rewards$;
   redemptions$ = this.rewardsStore.redemptions$;
   pendingRedemptions$ = this.rewardsStore.pendingRedemptions$;
+  isAdult$ = this.authService.isAdult$;
 
   currentTheme: UITheme = this.themeService.getCurrentTheme();
   activeTab: 'rewards' | 'redemptions' = 'rewards';
