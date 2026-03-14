@@ -48,4 +48,5 @@ COPY --from=builder /app/server/public ./public
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+# Run migrations then start the server
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/index.js"]
