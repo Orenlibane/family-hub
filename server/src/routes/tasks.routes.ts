@@ -271,7 +271,10 @@ router.post('/:id/approve-completion', requireAdult, async (req: Request, res: R
     ]);
 
     // Emit task update
-    emitToHousehold(req.user!.householdId, 'task:completed', updatedTask);
+    emitToHousehold(req.user!.householdId, 'task:completed', {
+      task: updatedTask,
+      coinsEarned: task.coinReward
+    });
 
     // Emit coin change
     emitToHousehold(req.user!.householdId, 'coins:changed', {
