@@ -789,7 +789,7 @@ export class LogisticsComponent {
 
   items$ = this.logisticsStore.items$;
   members$ = this.householdStore.members$;
-  isAdult$ = this.authService.isAdultOrAdmin$;
+  isAdult$ = this.authService.isAdult$;
   hasUnsavedChanges$ = this.logisticsStore.hasUnsavedChanges$;
   isSaving$ = this.logisticsStore.isSaving$;
 

@@ -745,7 +745,7 @@ export class VotingComponent {
 
   activePolls$ = this.pollsStore.activePolls$;
   closedPolls$ = this.pollsStore.closedPolls$;
-  canClosePoll$ = this.authService.isAdultOrAdmin$;
+  canClosePoll$ = this.authService.isAdult$;
 
   currentTheme: UITheme = this.themeService.getCurrentTheme();
   showCreateModal = false;
