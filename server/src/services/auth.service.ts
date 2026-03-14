@@ -62,6 +62,11 @@ export const findOrCreateUser = async (googleUserData: {
   name: string;
   avatarUrl?: string | null;
 }) => {
+  // Check if email is in admin list
+  const isAdminEmail = await prisma.adminEmail.findUnique({
+    where: { email: googleUserData.email }
+  });
+
   // Check if user exists
   let user = await prisma.user.findUnique({
     where: { googleId: googleUserData.googleId },
@@ -69,6 +74,15 @@ export const findOrCreateUser = async (googleUserData: {
   });
 
   if (user) {
+    // Update role to ADMIN if email is in admin list and user isn't already admin
+    if (isAdminEmail && user.role !== 'ADMIN') {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'ADMIN' },
+        include: { household: true }
+      });
+      console.log(`[Auth] Upgraded user ${user.email} to ADMIN role`);
+    }
     return { user, household: user.household, isNew: false };
   }
 
@@ -79,16 +93,23 @@ export const findOrCreateUser = async (googleUserData: {
   });
 
   if (user) {
-    // Link Google ID to existing user
+    // Link Google ID to existing user and upgrade to ADMIN if needed
+    const updateData: any = { googleId: googleUserData.googleId };
+    if (isAdminEmail && user.role !== 'ADMIN') {
+      updateData.role = 'ADMIN';
+      console.log(`[Auth] Upgraded user ${user.email} to ADMIN role`);
+    }
+
     user = await prisma.user.update({
       where: { id: user.id },
-      data: { googleId: googleUserData.googleId },
+      data: updateData,
       include: { household: true }
     });
     return { user, household: user.household, isNew: false };
   }
 
-  // Create new household and user (as ADMIN)
+  // Create new household and user
+  // Role is ADMIN if email is in admin list, otherwise ADMIN for household creator
   const household = await prisma.household.create({
     data: {
       name: `${googleUserData.name}'s Family`
@@ -101,7 +122,7 @@ export const findOrCreateUser = async (googleUserData: {
       email: googleUserData.email,
       name: googleUserData.name,
       avatarUrl: googleUserData.avatarUrl,
-      role: 'ADMIN',
+      role: 'ADMIN', // New household creator is always ADMIN
       householdId: household.id
     },
     include: { household: true }

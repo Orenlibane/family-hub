@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, noAuthGuard, adultGuard, kidGuard } from './core/guards';
+import { VotingComponent } from './pages/command-center/voting/voting.component';
 
 export const routes: Routes = [
   // Public routes
@@ -49,7 +50,7 @@ export const routes: Routes = [
       },
       {
         path: 'voting',
-        loadComponent: () => import('./pages/command-center/voting/voting.component').then(m => m.VotingComponent)
+        component: VotingComponent
       },
       {
         path: 'chat',
@@ -86,7 +87,7 @@ export const routes: Routes = [
       },
       {
         path: 'voting',
-        loadComponent: () => import('./pages/command-center/voting/voting.component').then(m => m.VotingComponent)
+        component: VotingComponent
       },
       {
         path: 'chat',

@@ -398,3 +398,13 @@ model LogisticsItem {
   @@index([dayOfWeek])
   @@index([assignedToId])
 }
+
+// ==================== ADMIN EMAIL ====================
+// Store approved admin emails for automatic ADMIN role assignment
+model AdminEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
