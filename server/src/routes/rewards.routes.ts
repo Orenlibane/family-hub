@@ -14,7 +14,7 @@ const createRewardSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   coinCost: z.number().int().min(1).max(10000),
-  iconUrl: z.string().url().optional(),
+  iconUrl: z.string().max(500000).nullable().optional(), // Support base64 images
   stock: z.number().int().min(0).optional()
 });
 
