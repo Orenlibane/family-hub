@@ -21,7 +21,8 @@ const createChildSchema = z.object({
 
 const updateMemberSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  role: z.enum(['ADULT', 'KID']).optional()
+  role: z.enum(['ADULT', 'KID']).optional(),
+  avatarUrl: z.string().max(500000).optional() // Support base64 images
 });
 
 const resetPinSchema = z.object({
@@ -111,7 +112,7 @@ router.patch('/users/:userId', validate(updateMemberSchema), async (req: Request
     const userId = getString(req.params.userId);
     if (!userId) return res.status(400).json({ message: 'User ID required' });
 
-    const { name, role } = req.body;
+    const { name, role, avatarUrl } = req.body;
     const householdId = req.user!.householdId;
 
     // Can't change own role
@@ -133,7 +134,8 @@ router.patch('/users/:userId', validate(updateMemberSchema), async (req: Request
       where: { id: userId },
       data: {
         ...(name && { name }),
-        ...(role && { role })
+        ...(role && { role }),
+        ...(avatarUrl !== undefined && { avatarUrl })
       },
       include: {
         childAuth: {
@@ -148,6 +150,7 @@ router.patch('/users/:userId', validate(updateMemberSchema), async (req: Request
       name: updatedUser.name,
       role: updatedUser.role,
       famCoins: updatedUser.famCoins,
+      avatarUrl: updatedUser.avatarUrl,
       username: updatedUser.childAuth?.username
     });
 
@@ -155,6 +158,7 @@ router.patch('/users/:userId', validate(updateMemberSchema), async (req: Request
       id: updatedUser.id,
       name: updatedUser.name,
       role: updatedUser.role,
+      avatarUrl: updatedUser.avatarUrl,
       username: updatedUser.childAuth?.username
     });
   } catch (error) {

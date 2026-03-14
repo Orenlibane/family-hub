@@ -64,8 +64,12 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
           <div class="portrait-grid">
             @for (member of members$ | async; track member.id) {
               <div class="portrait-member" [class.is-you]="member.id === (user$ | async)?.id">
-                <div class="member-planet" [class]="getRoleClass(member.role)">
-                  <span class="member-initial">{{ member.avatar || member.name?.charAt(0) || '?' }}</span>
+                <div class="member-planet" [class]="getRoleClass(member.role)" [class.has-image]="member.avatarUrl">
+                  @if (member.avatarUrl) {
+                    <img [src]="member.avatarUrl" alt="" class="member-avatar-img" />
+                  } @else {
+                    <span class="member-initial">{{ member.avatar || member.name?.charAt(0) || '?' }}</span>
+                  }
                   <div class="orbit-ring"></div>
                   @if (member.currentMood) {
                     <span class="mood-badge">{{ getMoodEmoji(member.currentMood) }}</span>
@@ -116,8 +120,12 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
           <div class="members-list">
             @for (member of members$ | async; track member.id) {
               <div class="member-card">
-                <div class="member-avatar" [class]="getRoleClass(member.role)">
-                  {{ member.avatar || member.name?.charAt(0) || '?' }}
+                <div class="member-avatar" [class]="getRoleClass(member.role)" [class.has-image]="member.avatarUrl">
+                  @if (member.avatarUrl) {
+                    <img [src]="member.avatarUrl" alt="" class="member-list-avatar-img" />
+                  } @else {
+                    {{ member.avatar || member.name?.charAt(0) || '?' }}
+                  }
                 </div>
                 <div class="member-details">
                   <div class="member-name-row">
@@ -170,6 +178,32 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
               <span class="modal-mascot">🐿️</span>
             </div>
             <form (ngSubmit)="saveEdit()" class="modal-form">
+              <!-- Avatar Upload Section -->
+              <div class="form-group avatar-upload-group">
+                <label><span class="label-icon">📷</span> תמונה</label>
+                <div class="avatar-upload-container">
+                  <div class="avatar-preview-wrapper" [class]="getRoleClass(selectedMember?.role)">
+                    @if (avatarPreview) {
+                      <img [src]="avatarPreview" alt="Avatar" class="avatar-preview-img" />
+                    } @else {
+                      <span class="avatar-preview-initial">{{ selectedMember?.name?.charAt(0) || '?' }}</span>
+                    }
+                  </div>
+                  <div class="avatar-upload-actions">
+                    <label class="upload-btn">
+                      <span>📤</span> העלה תמונה
+                      <input type="file" accept="image/*" (change)="onAvatarFileSelected($event)" hidden />
+                    </label>
+                    @if (avatarPreview) {
+                      <button type="button" class="clear-avatar-btn" (click)="clearAvatar()">
+                        <span>🗑️</span> הסר
+                      </button>
+                    }
+                  </div>
+                  <p class="upload-hint">עד 500KB, JPG/PNG</p>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label><span class="label-icon">👤</span> שם</label>
                 <input type="text" [(ngModel)]="editForm.name" name="name" class="cosmic-input" required />
@@ -609,6 +643,27 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
       font-size: 2rem;
       font-weight: 700;
       color: white;
+    }
+
+    .member-planet.has-image {
+      overflow: hidden;
+    }
+
+    .member-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .member-avatar.has-image {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .member-list-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .orbit-ring {
@@ -1160,6 +1215,103 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
       background: linear-gradient(135deg, #10b981, #059669);
     }
 
+    /* Avatar Upload Styles */
+    .avatar-upload-group {
+      text-align: center;
+    }
+
+    .avatar-upload-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar-preview-wrapper {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 3px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    }
+
+    .avatar-preview-wrapper.parent {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    }
+
+    .avatar-preview-wrapper.child {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    }
+
+    .avatar-preview-wrapper.admin {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .avatar-preview-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .avatar-preview-initial {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: white;
+    }
+
+    .avatar-upload-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .upload-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 12px;
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .upload-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+    }
+
+    .clear-avatar-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: rgba(239,68,68,0.2);
+      border: none;
+      border-radius: 12px;
+      color: #ef4444;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-avatar-btn:hover {
+      background: rgba(239,68,68,0.3);
+    }
+
+    .upload-hint {
+      margin: 0;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.75rem;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .household-card {
@@ -1221,7 +1373,8 @@ export class FamilyComponent {
   // Edit modal
   showEditModal = false;
   selectedMember: any = null;
-  editForm = { name: '', role: 'KID' as 'ADULT' | 'KID' };
+  editForm = { name: '', role: 'KID' as 'ADULT' | 'KID', avatarUrl: '' };
+  avatarPreview: string | null = null;
 
   // Create child modal
   showCreateChildModal = false;
@@ -1242,7 +1395,8 @@ export class FamilyComponent {
   // Edit Modal Methods
   openEditModal(member: any): void {
     this.selectedMember = member;
-    this.editForm = { name: member.name, role: member.role };
+    this.editForm = { name: member.name, role: member.role, avatarUrl: member.avatarUrl || '' };
+    this.avatarPreview = member.avatarUrl || null;
     this.showEditModal = true;
     this.cdr.markForCheck();
   }
@@ -1250,6 +1404,7 @@ export class FamilyComponent {
   closeEditModal(): void {
     this.showEditModal = false;
     this.selectedMember = null;
+    this.avatarPreview = null;
     this.cdr.markForCheck();
   }
 
@@ -1257,7 +1412,11 @@ export class FamilyComponent {
     if (!this.selectedMember || this.isSaving) return;
 
     this.isSaving = true;
-    this.apiService.patch(`/api/admin/users/${this.selectedMember.id}`, this.editForm)
+    const payload: any = { name: this.editForm.name, role: this.editForm.role };
+    if (this.editForm.avatarUrl) {
+      payload.avatarUrl = this.editForm.avatarUrl;
+    }
+    this.apiService.patch(`/api/admin/users/${this.selectedMember.id}`, payload)
       .subscribe({
         next: () => {
           this.householdStore.loadHousehold();
@@ -1357,6 +1516,38 @@ export class FamilyComponent {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  onAvatarFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        return;
+      }
+
+      // Validate file size (max 500KB)
+      if (file.size > 500 * 1024) {
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        this.avatarPreview = result;
+        this.editForm.avatarUrl = result;
+        this.cdr.markForCheck();
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  clearAvatar(): void {
+    this.avatarPreview = null;
+    this.editForm.avatarUrl = '';
+    this.cdr.markForCheck();
   }
 
   private showSuccess(message: string): void {
