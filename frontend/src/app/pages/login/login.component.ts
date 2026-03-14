@@ -162,9 +162,9 @@ import { Router } from '@angular/router';
             <!-- Join Family -->
             <div class="text-center">
               <p class="text-gray-500 text-sm mb-2">יש לך קוד הזמנה?</p>
-              <a href="/join" class="text-purple-600 font-semibold hover:text-pink-500 transition-colors">
+              <button (click)="joinWithInviteCode()" class="text-purple-600 font-semibold hover:text-pink-500 transition-colors bg-transparent border-none cursor-pointer">
                 הצטרף למשפחה קיימת
-              </a>
+              </button>
             </div>
           </div>
 
@@ -219,5 +219,12 @@ export class LoginComponent {
         this.cdr.markForCheck();
       }
     });
+  }
+
+  joinWithInviteCode(): void {
+    const inviteCode = prompt('הכנס קוד הזמנה:');
+    if (inviteCode && inviteCode.trim()) {
+      this.router.navigate(['/join', inviteCode.trim()]);
+    }
   }
 }
