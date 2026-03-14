@@ -159,12 +159,28 @@ import { Router } from '@angular/router';
               <div class="flex-1 h-px bg-gray-200"></div>
             </div>
 
-            <!-- Join Family -->
-            <div class="text-center">
-              <p class="text-gray-500 text-sm mb-2">יש לך קוד הזמנה?</p>
-              <button (click)="joinWithInviteCode()" class="text-purple-600 font-semibold hover:text-pink-500 transition-colors bg-transparent border-none cursor-pointer">
-                הצטרף למשפחה קיימת
-              </button>
+            <!-- Join Family with Invite Code -->
+            <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-100">
+              <p class="text-gray-700 font-semibold text-center mb-3">יש לך קוד הזמנה?</p>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  [(ngModel)]="inviteCode"
+                  name="inviteCode"
+                  class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-400 focus:outline-none transition-colors text-center text-lg font-mono text-gray-900"
+                  placeholder="הזן קוד הזמנה"
+                  (keyup.enter)="joinWithInviteCode()"
+                />
+                <button
+                  (click)="joinWithInviteCode()"
+                  [disabled]="!inviteCode.trim()"
+                  class="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl
+                         hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200
+                         disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  🚀
+                </button>
+              </div>
             </div>
           </div>
 
@@ -195,6 +211,7 @@ export class LoginComponent {
   kidLogin = { username: '', pin: '' };
   kidLoginError = '';
   isLoggingIn = false;
+  inviteCode = '';
 
   loginWithGoogle(): void {
     this.authService.loginWithGoogle();
@@ -222,9 +239,9 @@ export class LoginComponent {
   }
 
   joinWithInviteCode(): void {
-    const inviteCode = prompt('הכנס קוד הזמנה:');
-    if (inviteCode && inviteCode.trim()) {
-      this.router.navigate(['/join', inviteCode.trim()]);
+    const code = this.inviteCode.trim();
+    if (code) {
+      this.router.navigate(['/join', code]);
     }
   }
 }
