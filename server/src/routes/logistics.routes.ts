@@ -105,7 +105,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/day/:dayOfWeek', async (req: Request, res: Response) => {
   try {
-    const dayOfWeek = parseInt(req.params.dayOfWeek);
+    const dayOfWeek = parseInt(req.params.dayOfWeek as string);
     if (isNaN(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
       return res.status(400).json({ message: 'Invalid day of week' });
     }
