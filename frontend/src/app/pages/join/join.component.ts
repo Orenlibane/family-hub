@@ -173,13 +173,9 @@ export class JoinComponent implements OnInit {
         // Reload auth state to get updated household
         this.authService.checkAuth();
 
-        // Navigate to appropriate page based on role
+        // Navigate to Command Center (Playground on hold)
         setTimeout(() => {
-          if (role === 'KID') {
-            this.router.navigate(['/playground']);
-          } else {
-            this.router.navigate(['/command-center']);
-          }
+          this.router.navigate(['/command-center']);
         }, 500);
       },
       error: (err) => {

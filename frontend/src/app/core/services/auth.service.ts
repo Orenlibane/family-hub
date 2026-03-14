@@ -219,11 +219,8 @@ export class AuthService {
    * Navigate based on user role
    */
   private navigateByRole(role: Role): void {
-    if (role === 'KID') {
-      this.router.navigate(['/playground']);
-    } else {
-      this.router.navigate(['/command-center']);
-    }
+    // For now, everyone goes to Command Center (Playground on hold)
+    this.router.navigate(['/command-center']);
   }
 
   /**
