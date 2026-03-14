@@ -80,7 +80,16 @@ export class AuthService {
    * Initiate Google OAuth login
    */
   loginWithGoogle(): void {
-    window.location.href = `${this.api['baseUrl']}/auth/google`;
+    // Check if there's a pending invite code
+    const inviteCode = localStorage.getItem('pendingInviteCode');
+    const baseUrl = `${this.api['baseUrl']}/auth/google`;
+
+    if (inviteCode) {
+      // Pass invite code as state parameter
+      window.location.href = `${baseUrl}?state=${encodeURIComponent(inviteCode)}`;
+    } else {
+      window.location.href = baseUrl;
+    }
   }
 
   /**

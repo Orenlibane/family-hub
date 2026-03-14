@@ -141,7 +141,7 @@ export class JoinComponent implements OnInit {
   private readonly cdr = inject(ChangeDetectorRef);
 
   inviteCode = '';
-  isLoading = false;
+  isLoading = true;
   isJoining = false;
   errorMessage = '';
 
@@ -149,6 +149,24 @@ export class JoinComponent implements OnInit {
     // Extract invite code from route params
     this.route.params.subscribe(params => {
       this.inviteCode = params['inviteCode'] || '';
+
+      // Check if user is authenticated
+      this.authService.state$.subscribe(state => {
+        if (!state.isLoading) {
+          if (!state.isAuthenticated) {
+            // Not logged in - store invite code and redirect to login
+            if (this.inviteCode) {
+              localStorage.setItem('pendingInviteCode', this.inviteCode);
+            }
+            this.router.navigate(['/login']);
+          } else {
+            // Authenticated - show join options
+            this.isLoading = false;
+            this.cdr.markForCheck();
+          }
+        }
+      });
+
       this.cdr.markForCheck();
     });
   }
@@ -170,6 +188,9 @@ export class JoinComponent implements OnInit {
 
     this.apiService.post(`/api/household/join/${this.inviteCode}`, { role }).subscribe({
       next: (response) => {
+        // Clear pending invite code from storage
+        localStorage.removeItem('pendingInviteCode');
+
         // Reload auth state to get updated household
         this.authService.checkAuth();
 

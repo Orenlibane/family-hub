@@ -13,15 +13,22 @@ const oauth2Client = new google.auth.OAuth2(
 /**
  * Generate Google OAuth URL
  */
-export const getGoogleAuthUrl = (): string => {
-  return oauth2Client.generateAuthUrl({
+export const getGoogleAuthUrl = (state?: string): string => {
+  const authUrlParams: any = {
     access_type: 'offline',
     scope: [
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/userinfo.email'
     ],
     prompt: 'consent'
-  });
+  };
+
+  // Include state (invite code) if provided
+  if (state) {
+    authUrlParams.state = state;
+  }
+
+  return oauth2Client.generateAuthUrl(authUrlParams);
 };
 
 /**

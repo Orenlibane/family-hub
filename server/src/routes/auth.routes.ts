@@ -15,8 +15,10 @@ const router = Router();
  * GET /auth/google
  * Redirect to Google OAuth
  */
-router.get('/google', (_req: Request, res: Response) => {
-  const authUrl = getGoogleAuthUrl();
+router.get('/google', (req: Request, res: Response) => {
+  // Get state parameter (invite code) if provided
+  const state = req.query.state as string | undefined;
+  const authUrl = getGoogleAuthUrl(state);
   res.redirect(authUrl);
 });
 
@@ -26,7 +28,7 @@ router.get('/google', (_req: Request, res: Response) => {
  */
 router.get('/google/callback', async (req: Request, res: Response) => {
   try {
-    const { code } = req.query;
+    const { code, state } = req.query;
 
     if (!code || typeof code !== 'string') {
       return res.redirect(`${config.frontendUrl}/login?error=missing_code`);
@@ -53,8 +55,17 @@ router.get('/google/callback', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    // Redirect to frontend (everyone goes to command-center, playground on hold)
-    const redirectPath = isNew ? '/onboarding' : '/command-center';
+    // Redirect to frontend
+    // State parameter contains invite code if present
+    const inviteCode = state as string | undefined;
+    let redirectPath = '/command-center';
+
+    if (isNew) {
+      redirectPath = '/onboarding';
+    } else if (inviteCode) {
+      redirectPath = `/join/${inviteCode}`;
+    }
+
     res.redirect(`${config.frontendUrl}${redirectPath}`);
   } catch (error) {
     console.error('[Auth] Google callback error:', error);
