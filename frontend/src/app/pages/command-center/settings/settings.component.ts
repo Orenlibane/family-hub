@@ -1,7 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService, ThemeService, UITheme } from '../../../core/services';
+import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/services';
 
 @Component({
   selector: 'app-settings',
@@ -12,44 +12,74 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       <!-- Header -->
       <header class="settings-header">
         <div class="header-content">
-          <span class="header-icon">⚙️</span>
+          <span class="header-icon">{{ currentTheme.assets.decorations[0] || '⚙️' }}</span>
           <div>
             <h1>הגדרות</h1>
             <p>התאם אישית את החוויה שלך</p>
           </div>
+          <span class="mascot">{{ currentTheme.assets.mascots[0] }}</span>
         </div>
       </header>
 
       <div class="settings-grid">
-        <!-- UI Theme Selection - Featured Section -->
-        <section class="settings-card theme-card full-width">
+        <!-- Basic Mode Selection -->
+        <section class="settings-card full-width">
           <div class="card-header">
             <div class="card-title">
               <span class="card-icon">🎨</span>
-              <h2>עיצוב ממשק</h2>
+              <h2>מצב תצוגה</h2>
             </div>
-            <span class="badge new">חדש!</span>
           </div>
-          <p class="card-description">בחר את העיצוב המועדף עליך. כל משתמש יכול לבחור עיצוב שונה!</p>
+          <p class="card-description">בחר בין מצב בהיר, כהה או עיצוב מותאם אישית</p>
+
+          <div class="mode-selector">
+            @for (theme of basicThemes; track theme.id) {
+              <button
+                class="mode-option"
+                [class.selected]="currentTheme.id === theme.id"
+                (click)="selectTheme(theme)"
+              >
+                <span class="mode-emoji">{{ theme.preview }}</span>
+                <span class="mode-label">{{ theme.nameHe }}</span>
+              </button>
+            }
+          </div>
+        </section>
+
+        <!-- Custom Themes Section -->
+        <section class="settings-card theme-card full-width">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="card-icon">✨</span>
+              <h2>עיצובים מיוחדים</h2>
+            </div>
+            <span class="badge featured">מומלץ לילדים!</span>
+          </div>
+          <p class="card-description">עיצובים צבעוניים וכיפיים - כל משתמש יכול לבחור את העיצוב שלו!</p>
 
           <div class="themes-grid">
-            @for (theme of allThemes; track theme.id) {
+            @for (theme of customThemes; track theme.id) {
               <button
                 class="theme-option"
-                [class.selected]="(currentTheme$ | async)?.id === theme.id"
+                [class.selected]="currentTheme.id === theme.id"
                 [class.unavailable]="!theme.available"
                 (click)="selectTheme(theme)"
                 [disabled]="!theme.available"
               >
-                <div class="theme-preview" [style.background]="theme.colors.background">
+                <div class="theme-preview" [style.background]="theme.colors.backgroundGradient">
                   <div class="theme-preview-accent" [style.background]="'linear-gradient(135deg, ' + theme.colors.primary + ', ' + theme.colors.secondary + ')'"></div>
                   <span class="theme-emoji">{{ theme.preview }}</span>
+                  <div class="theme-mascots">
+                    @for (mascot of theme.assets.mascots; track mascot) {
+                      <span class="mascot-icon">{{ mascot }}</span>
+                    }
+                  </div>
                 </div>
                 <div class="theme-info">
                   <h3>{{ theme.nameHe }}</h3>
                   <p>{{ theme.descriptionHe }}</p>
                 </div>
-                @if ((currentTheme$ | async)?.id === theme.id) {
+                @if (currentTheme.id === theme.id) {
                   <div class="theme-selected-badge">
                     <span>✓</span> פעיל
                   </div>
@@ -80,6 +110,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
               [(ngModel)]="householdName"
               class="form-input"
               placeholder="המשפחה שלנו"
+              (ngModelChange)="markDirty()"
             />
           </div>
 
@@ -118,7 +149,12 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
               <span class="toggle-title">משימות שהושלמו</span>
               <span class="toggle-desc">קבל התראה כשילד משלים משימה</span>
             </div>
-            <input type="checkbox" [(ngModel)]="notifications.taskCompleted" class="toggle-input" />
+            <input
+              type="checkbox"
+              [(ngModel)]="notifications.taskCompleted"
+              class="toggle-input"
+              (ngModelChange)="markDirty()"
+            />
             <span class="toggle-switch"></span>
           </label>
 
@@ -127,7 +163,12 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
               <span class="toggle-title">בקשות פרסים</span>
               <span class="toggle-desc">קבל התראה כשילד מבקש פרס</span>
             </div>
-            <input type="checkbox" [(ngModel)]="notifications.rewardRequested" class="toggle-input" />
+            <input
+              type="checkbox"
+              [(ngModel)]="notifications.rewardRequested"
+              class="toggle-input"
+              (ngModelChange)="markDirty()"
+            />
             <span class="toggle-switch"></span>
           </label>
 
@@ -136,7 +177,12 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
               <span class="toggle-title">תזכורות יומיות</span>
               <span class="toggle-desc">תזכורת על משימות שלא הושלמו</span>
             </div>
-            <input type="checkbox" [(ngModel)]="notifications.dailyReminder" class="toggle-input" />
+            <input
+              type="checkbox"
+              [(ngModel)]="notifications.dailyReminder"
+              class="toggle-input"
+              (ngModelChange)="markDirty()"
+            />
             <span class="toggle-switch"></span>
           </label>
         </section>
@@ -173,51 +219,24 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
           </div>
         </section>
 
-        <!-- App Settings -->
+        <!-- Language Settings -->
         <section class="settings-card">
           <div class="card-header">
             <div class="card-title">
               <span class="card-icon">🌐</span>
-              <h2>הגדרות אפליקציה</h2>
+              <h2>שפה</h2>
             </div>
           </div>
 
           <div class="form-group">
-            <label>שפה</label>
-            <select [(ngModel)]="language" class="form-select">
+            <select
+              [(ngModel)]="language"
+              class="form-select"
+              (ngModelChange)="markDirty()"
+            >
               <option value="he">🇮🇱 עברית</option>
               <option value="en">🇺🇸 English</option>
             </select>
-          </div>
-
-          <div class="form-group">
-            <label>מצב תצוגה</label>
-            <div class="mode-selector">
-              <button
-                class="mode-option"
-                [class.selected]="displayMode === 'light'"
-                (click)="displayMode = 'light'"
-              >
-                <span>☀️</span>
-                <span>בהיר</span>
-              </button>
-              <button
-                class="mode-option"
-                [class.selected]="displayMode === 'dark'"
-                (click)="displayMode = 'dark'"
-              >
-                <span>🌙</span>
-                <span>כהה</span>
-              </button>
-              <button
-                class="mode-option"
-                [class.selected]="displayMode === 'auto'"
-                (click)="displayMode = 'auto'"
-              >
-                <span>🔄</span>
-                <span>אוטומטי</span>
-              </button>
-            </div>
           </div>
         </section>
 
@@ -241,37 +260,33 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
         </section>
       </div>
 
-      <!-- Save FAB -->
-      <button class="save-fab" (click)="saveSettings()">
-        <span>💾</span> שמור שינויים
-      </button>
+      <!-- Save FAB - only show when dirty -->
+      @if (isDirty) {
+        <button class="save-fab" (click)="saveSettings()">
+          <span>💾</span> שמור שינויים
+        </button>
+      }
 
-      <!-- Theme Changed Toast -->
-      @if (showThemeToast) {
-        <div class="toast">
-          <span>🎨</span>
-          <span>העיצוב שונה ל{{ (currentTheme$ | async)?.nameHe }}</span>
+      <!-- Toast Messages -->
+      @if (toastMessage) {
+        <div class="toast" [class.success]="toastType === 'success'" [class.info]="toastType === 'info'">
+          <span>{{ toastIcon }}</span>
+          <span>{{ toastMessage }}</span>
         </div>
       }
     </div>
   `,
   styles: [`
     :host {
-      --card-bg: rgba(255,255,255,0.05);
-      --card-border: rgba(255,255,255,0.1);
-      --text-primary: #ffffff;
-      --text-secondary: rgba(255,255,255,0.7);
-      --text-muted: rgba(255,255,255,0.5);
-      --accent: #8b5cf6;
-      --accent-glow: rgba(139,92,246,0.3);
-      --danger: #ef4444;
+      display: block;
     }
 
     .settings-page {
       min-height: 100vh;
-      background: linear-gradient(135deg, #0a0a1a 0%, #12122a 50%, #1a1a3a 100%);
+      background: var(--theme-background-gradient);
       padding: 24px;
       padding-bottom: 100px;
+      color: var(--theme-text);
     }
 
     /* Header */
@@ -283,11 +298,12 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       display: flex;
       align-items: center;
       gap: 16px;
-      background: var(--card-bg);
+      background: var(--theme-surface);
       backdrop-filter: blur(12px);
       border-radius: 20px;
       padding: 20px 24px;
-      border: 1px solid var(--card-border);
+      border: 1px solid var(--theme-border);
+      position: relative;
     }
 
     .header-icon {
@@ -297,14 +313,26 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     .header-content h1 {
       font-size: 1.75rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--theme-text);
       margin: 0;
     }
 
     .header-content p {
-      color: var(--text-secondary);
+      color: var(--theme-text-muted);
       margin: 4px 0 0;
       font-size: 0.9rem;
+    }
+
+    .mascot {
+      position: absolute;
+      left: 24px;
+      font-size: 2rem;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
     }
 
     /* Grid Layout */
@@ -320,11 +348,11 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
 
     /* Cards */
     .settings-card {
-      background: var(--card-bg);
+      background: var(--theme-surface);
       backdrop-filter: blur(12px);
       border-radius: 20px;
       padding: 24px;
-      border: 1px solid var(--card-border);
+      border: 1px solid var(--theme-border);
     }
 
     .card-header {
@@ -347,12 +375,12 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     .card-title h2 {
       font-size: 1.2rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--theme-text);
       margin: 0;
     }
 
     .card-description {
-      color: var(--text-secondary);
+      color: var(--theme-text-muted);
       font-size: 0.9rem;
       margin: 0 0 20px;
     }
@@ -364,15 +392,59 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       font-weight: 600;
     }
 
-    .badge.new {
-      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+    .badge.featured {
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
       color: white;
+    }
+
+    /* Mode Selector (Light/Dark) */
+    .mode-selector {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .mode-option {
+      flex: 1;
+      min-width: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 16px;
+      background: var(--theme-surface);
+      border: 2px solid var(--theme-border);
+      border-radius: 16px;
+      color: var(--theme-text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-option:hover {
+      background: var(--theme-surface-hover);
+      border-color: var(--theme-primary);
+    }
+
+    .mode-option.selected {
+      border-color: var(--theme-primary);
+      background: linear-gradient(135deg, rgba(var(--theme-primary), 0.1), rgba(var(--theme-secondary), 0.05));
+      color: var(--theme-text);
+      box-shadow: 0 0 30px var(--theme-glow);
+    }
+
+    .mode-emoji {
+      font-size: 2rem;
+    }
+
+    .mode-label {
+      font-size: 0.9rem;
+      font-weight: 600;
     }
 
     /* Theme Selection */
     .theme-card {
-      background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(236,72,153,0.05));
-      border: 1px solid rgba(139,92,246,0.2);
+      background: linear-gradient(135deg, rgba(139,92,246,0.05), rgba(236,72,153,0.02));
+      border: 1px solid var(--theme-border);
     }
 
     .themes-grid {
@@ -385,7 +457,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       position: relative;
       display: flex;
       flex-direction: column;
-      background: rgba(255,255,255,0.03);
+      background: var(--theme-surface);
       border: 2px solid transparent;
       border-radius: 16px;
       padding: 16px;
@@ -395,14 +467,13 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     }
 
     .theme-option:hover:not(.unavailable) {
-      background: rgba(255,255,255,0.08);
+      background: var(--theme-surface-hover);
       transform: translateY(-4px);
     }
 
     .theme-option.selected {
-      border-color: var(--accent);
-      background: rgba(139,92,246,0.1);
-      box-shadow: 0 0 30px var(--accent-glow);
+      border-color: var(--theme-primary);
+      box-shadow: 0 0 30px var(--theme-glow);
     }
 
     .theme-option.unavailable {
@@ -437,15 +508,27 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
     }
 
+    .theme-mascots {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .mascot-icon {
+      font-size: 1.2rem;
+    }
+
     .theme-info h3 {
-      color: var(--text-primary);
+      color: var(--theme-text);
       font-size: 1rem;
       font-weight: 600;
       margin: 0 0 4px;
     }
 
     .theme-info p {
-      color: var(--text-muted);
+      color: var(--theme-text-muted);
       font-size: 0.8rem;
       margin: 0;
       line-height: 1.4;
@@ -455,7 +538,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       position: absolute;
       top: 12px;
       left: 12px;
-      background: var(--accent);
+      background: var(--theme-primary);
       color: white;
       padding: 4px 10px;
       border-radius: 12px;
@@ -488,7 +571,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
 
     .form-group label {
       display: block;
-      color: var(--text-secondary);
+      color: var(--theme-text-muted);
       font-size: 0.85rem;
       margin-bottom: 8px;
     }
@@ -496,17 +579,17 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     .form-input, .form-select {
       width: 100%;
       padding: 12px 16px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--theme-surface);
+      border: 1px solid var(--theme-border);
       border-radius: 12px;
-      color: var(--text-primary);
+      color: var(--theme-text);
       font-size: 1rem;
       outline: none;
       transition: border-color 0.2s;
     }
 
     .form-input:focus, .form-select:focus {
-      border-color: var(--accent);
+      border-color: var(--theme-primary);
     }
 
     .form-input.mono {
@@ -516,7 +599,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
 
     .form-hint {
       display: block;
-      color: var(--text-muted);
+      color: var(--theme-text-muted);
       font-size: 0.75rem;
       margin-top: 6px;
     }
@@ -533,7 +616,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     .btn-icon {
       width: 48px;
       height: 48px;
-      background: var(--accent);
+      background: var(--theme-primary);
       border: none;
       border-radius: 12px;
       color: white;
@@ -552,10 +635,11 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       align-items: center;
       gap: 16px;
       padding: 16px;
-      background: rgba(255,255,255,0.03);
+      background: var(--theme-surface);
       border-radius: 12px;
       margin-bottom: 12px;
       cursor: pointer;
+      border: 1px solid var(--theme-border);
     }
 
     .toggle-content {
@@ -564,14 +648,14 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
 
     .toggle-title {
       display: block;
-      color: var(--text-primary);
+      color: var(--theme-text);
       font-weight: 500;
       margin-bottom: 2px;
     }
 
     .toggle-desc {
       display: block;
-      color: var(--text-muted);
+      color: var(--theme-text-muted);
       font-size: 0.8rem;
     }
 
@@ -582,7 +666,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     .toggle-switch {
       width: 48px;
       height: 28px;
-      background: rgba(255,255,255,0.2);
+      background: var(--theme-border);
       border-radius: 14px;
       position: relative;
       transition: background 0.3s;
@@ -601,7 +685,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     }
 
     .toggle-input:checked + .toggle-switch {
-      background: var(--accent);
+      background: var(--theme-primary);
     }
 
     .toggle-input:checked + .toggle-switch::after {
@@ -614,16 +698,17 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       align-items: center;
       gap: 16px;
       padding: 16px;
-      background: rgba(255,255,255,0.03);
+      background: var(--theme-surface);
       border-radius: 16px;
       margin-bottom: 16px;
+      border: 1px solid var(--theme-border);
     }
 
     .account-avatar {
       width: 60px;
       height: 60px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), #ec4899);
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -633,13 +718,13 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     }
 
     .account-details h3 {
-      color: var(--text-primary);
+      color: var(--theme-text);
       font-size: 1.1rem;
       margin: 0 0 4px;
     }
 
     .account-details p {
-      color: var(--text-muted);
+      color: var(--theme-text-muted);
       font-size: 0.85rem;
       margin: 0 0 8px;
     }
@@ -647,51 +732,11 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     .role-badge {
       display: inline-block;
       padding: 4px 12px;
-      background: rgba(139,92,246,0.2);
-      color: #a78bfa;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+      color: white;
       border-radius: 12px;
       font-size: 0.75rem;
       font-weight: 600;
-    }
-
-    /* Mode Selector */
-    .mode-selector {
-      display: flex;
-      gap: 8px;
-    }
-
-    .mode-option {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      padding: 16px 12px;
-      background: rgba(255,255,255,0.03);
-      border: 2px solid transparent;
-      border-radius: 12px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .mode-option:hover {
-      background: rgba(255,255,255,0.08);
-    }
-
-    .mode-option.selected {
-      border-color: var(--accent);
-      background: rgba(139,92,246,0.1);
-      color: var(--text-primary);
-    }
-
-    .mode-option span:first-child {
-      font-size: 1.5rem;
-    }
-
-    .mode-option span:last-child {
-      font-size: 0.8rem;
-      font-weight: 500;
     }
 
     /* Buttons */
@@ -707,33 +752,33 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       justify-content: center;
       gap: 8px;
       padding: 12px 16px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+      background: var(--theme-surface);
+      border: 1px solid var(--theme-border);
       border-radius: 12px;
-      color: var(--text-primary);
+      color: var(--theme-text);
       font-size: 0.9rem;
       cursor: pointer;
       transition: background 0.2s;
     }
 
     .btn-secondary:hover {
-      background: rgba(255,255,255,0.1);
+      background: var(--theme-surface-hover);
     }
 
     .btn-outline {
       padding: 12px 20px;
       background: transparent;
-      border: 2px dashed rgba(255,255,255,0.2);
+      border: 2px dashed var(--theme-border);
       border-radius: 12px;
-      color: var(--text-secondary);
+      color: var(--theme-text-muted);
       font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.2s;
     }
 
     .btn-outline:hover {
-      border-color: var(--accent);
-      color: var(--accent);
+      border-color: var(--theme-primary);
+      color: var(--theme-primary);
     }
 
     .btn-outline.full-width {
@@ -747,7 +792,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
     }
 
     .danger-zone .card-title h2 {
-      color: var(--danger);
+      color: var(--theme-error);
     }
 
     .danger-actions {
@@ -761,7 +806,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       align-items: center;
       gap: 8px;
       padding: 12px 20px;
-      background: var(--danger);
+      background: var(--theme-error);
       border: none;
       border-radius: 12px;
       color: white;
@@ -784,7 +829,7 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       background: transparent;
       border: 2px solid rgba(239,68,68,0.3);
       border-radius: 12px;
-      color: var(--danger);
+      color: var(--theme-error);
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
@@ -804,21 +849,27 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       align-items: center;
       gap: 10px;
       padding: 16px 28px;
-      background: linear-gradient(135deg, var(--accent), #ec4899);
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
       border: none;
       border-radius: 30px;
       color: white;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 10px 40px rgba(139,92,246,0.4);
+      box-shadow: 0 10px 40px var(--theme-glow);
       transition: transform 0.2s, box-shadow 0.2s;
       z-index: 100;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 10px 40px var(--theme-glow); }
+      50% { box-shadow: 0 15px 50px var(--theme-glow); }
     }
 
     .save-fab:hover {
       transform: translateY(-4px);
-      box-shadow: 0 15px 50px rgba(139,92,246,0.5);
+      box-shadow: 0 15px 50px var(--theme-glow);
     }
 
     /* Toast */
@@ -831,14 +882,18 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       align-items: center;
       gap: 10px;
       padding: 14px 24px;
-      background: rgba(16,185,129,0.9);
+      background: var(--theme-success);
       backdrop-filter: blur(12px);
       border-radius: 30px;
       color: white;
       font-weight: 600;
-      box-shadow: 0 10px 40px rgba(16,185,129,0.3);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
       animation: toast-in 0.3s ease-out;
       z-index: 200;
+    }
+
+    .toast.info {
+      background: var(--theme-primary);
     }
 
     @keyframes toast-in {
@@ -863,6 +918,16 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
         grid-template-columns: 1fr;
       }
 
+      .mode-selector {
+        flex-direction: column;
+      }
+
+      .mode-option {
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 16px;
+      }
+
       .save-fab {
         left: 16px;
         right: 16px;
@@ -875,28 +940,54 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
 export class SettingsComponent {
   private readonly authService = inject(AuthService);
   private readonly themeService = inject(ThemeService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   user$ = this.authService.user$;
   household$ = this.authService.household$;
-  currentTheme$ = this.themeService.currentTheme$;
 
-  allThemes: UITheme[] = this.themeService.getAllThemes();
+  // Current theme (resolved, not observable for simpler template usage)
+  currentTheme: UITheme = this.themeService.getCurrentTheme();
 
+  // Theme lists
+  basicThemes: UITheme[] = this.themeService.getBasicThemes();
+  customThemes: UITheme[] = this.themeService.getCustomThemes();
+
+  // Settings
   householdName = '';
-  copied = false;
-  language = 'he';
-  displayMode: 'light' | 'dark' | 'auto' = 'dark';
-  showThemeToast = false;
-
+  language: 'he' | 'en' = 'he';
   notifications = {
     taskCompleted: true,
     rewardRequested: true,
     dailyReminder: false
   };
 
+  // UI State
+  copied = false;
+  isDirty = false;
+  toastMessage = '';
+  toastIcon = '';
+  toastType: 'success' | 'info' = 'success';
+
   constructor() {
+    // Load settings
+    const settings = this.themeService.getSettings();
+    this.language = settings.language;
+    this.notifications = { ...settings.notifications };
+    if (settings.householdName) {
+      this.householdName = settings.householdName;
+    }
+
+    // Subscribe to household for name
     this.household$.subscribe(h => {
-      if (h) this.householdName = h.name;
+      if (h && !this.householdName) {
+        this.householdName = h.name;
+      }
+    });
+
+    // Subscribe to theme changes
+    this.themeService.currentTheme$.subscribe(theme => {
+      this.currentTheme = theme;
+      this.cdr.markForCheck();
     });
   }
 
@@ -905,9 +996,29 @@ export class SettingsComponent {
 
     const success = this.themeService.setTheme(theme.id);
     if (success) {
-      this.showThemeToast = true;
-      setTimeout(() => this.showThemeToast = false, 3000);
+      this.currentTheme = theme;
+      this.showToast(`העיצוב שונה ל${theme.nameHe}`, '🎨', 'info');
+      this.cdr.markForCheck();
     }
+  }
+
+  markDirty(): void {
+    this.isDirty = true;
+    this.cdr.markForCheck();
+  }
+
+  saveSettings(): void {
+    // Save all settings
+    this.themeService.saveSettings({
+      themeId: this.currentTheme.id,
+      language: this.language,
+      notifications: this.notifications,
+      householdName: this.householdName
+    });
+
+    this.isDirty = false;
+    this.showToast('ההגדרות נשמרו בהצלחה!', '✅', 'success');
+    this.cdr.markForCheck();
   }
 
   copyInviteCode(): void {
@@ -915,25 +1026,33 @@ export class SettingsComponent {
       if (h?.inviteCode) {
         navigator.clipboard.writeText(h.inviteCode);
         this.copied = true;
-        setTimeout(() => this.copied = false, 2000);
+        this.showToast('הקוד הועתק!', '📋', 'success');
+        setTimeout(() => {
+          this.copied = false;
+          this.cdr.markForCheck();
+        }, 2000);
       }
     }).unsubscribe();
   }
 
   generateNewCode(): void {
-    console.log('Generating new invite code...');
-  }
-
-  saveSettings(): void {
-    console.log('Saving settings...', {
-      householdName: this.householdName,
-      notifications: this.notifications,
-      language: this.language,
-      displayMode: this.displayMode
-    });
+    this.showToast('מייצר קוד חדש...', '🔄', 'info');
+    // TODO: Call API to generate new code
   }
 
   logout(): void {
     this.authService.logout();
+  }
+
+  private showToast(message: string, icon: string, type: 'success' | 'info'): void {
+    this.toastMessage = message;
+    this.toastIcon = icon;
+    this.toastType = type;
+    this.cdr.markForCheck();
+
+    setTimeout(() => {
+      this.toastMessage = '';
+      this.cdr.markForCheck();
+    }, 3000);
   }
 }
