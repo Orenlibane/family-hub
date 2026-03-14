@@ -1510,7 +1510,6 @@ export class TasksComponent {
   selectedCompleterId = '';
 
   isAdult$ = this.authService.isAdult$;
-  members$ = this.householdStore.members$;
 
   statusFilters: { value: TaskStatus | '', label: string, icon: string }[] = [
     { value: '', label: 'הכל', icon: '🌍' },
