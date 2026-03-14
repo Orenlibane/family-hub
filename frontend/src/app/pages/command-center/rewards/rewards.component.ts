@@ -65,8 +65,12 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
               <div class="reward-card" [class.inactive]="!reward.isActive">
                 <div class="card-glow"></div>
                 <div class="card-header">
-                  <div class="reward-icon-wrap">
-                    <span class="reward-icon">🎁</span>
+                  <div class="reward-icon-wrap" [class.has-custom-icon]="reward.iconUrl">
+                    @if (reward.iconUrl) {
+                      <img [src]="reward.iconUrl" alt="" class="reward-icon-img" />
+                    } @else {
+                      <span class="reward-icon">🎁</span>
+                    }
                     <div class="icon-ring"></div>
                   </div>
                   <div class="card-actions">
@@ -166,6 +170,32 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
             </div>
 
             <form (ngSubmit)="saveReward()" class="modal-form">
+              <!-- Avatar/Icon Upload Section -->
+              <div class="form-group">
+                <label><span class="label-icon">🖼️</span> תמונת פרס</label>
+                <div class="icon-upload-container">
+                  <div class="icon-preview-wrapper">
+                    @if (iconPreview) {
+                      <img [src]="iconPreview" alt="Icon" class="icon-preview-img" />
+                    } @else {
+                      <span class="icon-preview-placeholder">🎁</span>
+                    }
+                  </div>
+                  <div class="icon-upload-actions">
+                    <label class="upload-btn">
+                      <span>📤</span> העלה תמונה
+                      <input type="file" accept="image/*" (change)="onIconFileSelected($event)" hidden />
+                    </label>
+                    @if (iconPreview) {
+                      <button type="button" class="clear-icon-btn" (click)="clearIcon()">
+                        <span>🗑️</span> הסר
+                      </button>
+                    }
+                  </div>
+                  <p class="upload-hint">עד 500KB, JPG/PNG</p>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label>שם הפרס *</label>
                 <input
@@ -499,6 +529,10 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
       height: 64px;
     }
 
+    .reward-icon-wrap.has-custom-icon .icon-ring {
+      border-color: rgba(139,92,246,0.8);
+    }
+
     .reward-icon {
       position: absolute;
       inset: 0;
@@ -506,6 +540,16 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
       align-items: center;
       justify-content: center;
       font-size: 2.5rem;
+      z-index: 1;
+    }
+
+    .reward-icon-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
       z-index: 1;
     }
 
@@ -841,6 +885,101 @@ import { Reward, CreateRewardDto, RedemptionRecord } from '../../../core/models'
     .form-group label {
       color: rgba(255,255,255,0.7);
       font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .label-icon {
+      font-size: 1.1rem;
+    }
+
+    /* Icon Upload Styles */
+    .icon-upload-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+    }
+
+    .icon-preview-wrapper {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .icon-preview-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .icon-preview-placeholder {
+      font-size: 2.5rem;
+    }
+
+    .icon-upload-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .upload-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(139,92,246,0.2);
+      border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 10px;
+      color: #a78bfa;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .upload-btn:hover {
+      background: rgba(139,92,246,0.3);
+      border-color: rgba(139,92,246,0.5);
+    }
+
+    .clear-icon-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 10px;
+      color: #f87171;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-icon-btn:hover {
+      background: rgba(239,68,68,0.2);
+      border-color: rgba(239,68,68,0.3);
+    }
+
+    .upload-hint {
+      color: rgba(255,255,255,0.4);
+      font-size: 0.75rem;
+      margin: 0;
     }
 
     .form-input {
@@ -1004,6 +1143,7 @@ export class RewardsComponent {
   showModal = false;
   editingReward: Reward | null = null;
   rewardForm: Partial<CreateRewardDto & { isActive: boolean }> = this.getEmptyForm();
+  iconPreview: string | null = null;
 
   isUnicornTheme(): boolean {
     return this.currentTheme.id === 'candy' || this.currentTheme.id === 'princess';
@@ -1021,6 +1161,7 @@ export class RewardsComponent {
   openCreateModal(): void {
     this.editingReward = null;
     this.rewardForm = this.getEmptyForm();
+    this.iconPreview = null;
     this.showModal = true;
   }
 
@@ -1031,8 +1172,10 @@ export class RewardsComponent {
       description: reward.description || '',
       coinCost: reward.coinCost,
       stock: reward.stock ?? undefined,
+      iconUrl: reward.iconUrl || undefined,
       isActive: reward.isActive
     };
+    this.iconPreview = reward.iconUrl || null;
     this.showModal = true;
   }
 
@@ -1048,7 +1191,8 @@ export class RewardsComponent {
       name: this.rewardForm.name!,
       description: this.rewardForm.description,
       coinCost: this.rewardForm.coinCost!,
-      stock: this.rewardForm.stock
+      stock: this.rewardForm.stock,
+      iconUrl: this.rewardForm.iconUrl
     };
 
     if (this.editingReward) {
@@ -1084,12 +1228,45 @@ export class RewardsComponent {
     this.rewardsStore.fulfillRedemption(redemption.id).subscribe();
   }
 
+  onIconFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+
+      if (!file.type.startsWith('image/')) {
+        alert('נא לבחור קובץ תמונה');
+        return;
+      }
+
+      if (file.size > 500 * 1024) {
+        alert('התמונה גדולה מדי. מקסימום 500KB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        this.iconPreview = result;
+        this.rewardForm.iconUrl = result;
+        this.cdr.markForCheck();
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  clearIcon(): void {
+    this.iconPreview = null;
+    this.rewardForm.iconUrl = undefined;
+    this.cdr.markForCheck();
+  }
+
   private getEmptyForm(): Partial<CreateRewardDto & { isActive: boolean }> {
     return {
       name: '',
       description: '',
       coinCost: 50,
       stock: undefined,
+      iconUrl: undefined,
       isActive: true
     };
   }
