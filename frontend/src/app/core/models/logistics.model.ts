@@ -11,7 +11,9 @@ export interface LogisticsItem {
   assignedTo?: {
     id: string;
     name: string;
+    avatar?: string;
     avatarUrl?: string;
+    role?: 'ADMIN' | 'ADULT' | 'KID';
   };
   createdBy: {
     id: string;
