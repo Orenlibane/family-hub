@@ -50,8 +50,12 @@ import { ChatMessage } from '../../../core/models';
           <div class="messages-list">
             @for (message of messages$ | async; track message.id) {
               <div class="message" [class.own]="message.sender.id === (user$ | async)?.id">
-                <div class="message-avatar">
-                  {{ message.sender.name?.charAt(0) || '?' }}
+                <div class="message-avatar" [class.has-image]="message.sender.avatarUrl">
+                  @if (message.sender.avatarUrl) {
+                    <img [src]="message.sender.avatarUrl" alt="" class="message-avatar-img" />
+                  } @else {
+                    {{ message.sender.name?.charAt(0) || '?' }}
+                  }
                 </div>
                 <div class="message-content">
                   <div class="message-header">
@@ -303,6 +307,17 @@ import { ChatMessage } from '../../../core/models';
 
     .message.own .message-avatar {
       background: linear-gradient(135deg, #10b981, #059669);
+    }
+
+    .message-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .message-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .message-content {

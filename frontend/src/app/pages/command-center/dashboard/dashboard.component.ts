@@ -27,9 +27,9 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
           <div class="clouds cloud-2"></div>
           <div class="rainbow-arc"></div>
           <div class="sparkles"></div>
-          @for (i of [1,2,3,4,5]; track i) {
-            <div class="floating-magic" [style.animation-delay]="i * 1.5 + 's'">
-              {{ ['✨', '🌸', '💫', '⭐', '🦋'][i-1] }}
+          @for (i of [1,2]; track i) {
+            <div class="floating-magic" [style.animation-delay]="i * 3 + 's'">
+              {{ ['✨', '💫'][i-1] }}
             </div>
           }
         </div>
@@ -40,7 +40,7 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
         <!-- Theme-Aware Header -->
         <header class="text-center mb-8">
           <div class="header-pill" [class.cosmic-pill]="!isUnicornTheme()" [class.unicorn-pill]="isUnicornTheme()">
-            <span class="text-4xl animate-pulse">{{ getThemeIcon() }}</span>
+            <span class="text-4xl">{{ getThemeIcon() }}</span>
             <div>
               <h1 class="text-2xl font-bold">מרכז המשפחה שלי</h1>
               <p class="subtitle">שלום, {{ (user$ | async)?.name }}! {{ isUnicornTheme() ? '✨' : '🚀' }}</p>
@@ -173,7 +173,13 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
               <div class="points-breakdown">
                 @for (member of members$ | async; track member.id) {
                   <div class="member-points">
-                    <span class="member-avatar">{{ member.name?.charAt(0) }}</span>
+                    <span class="member-avatar" [class.has-image]="member.avatarUrl">
+                      @if (member.avatarUrl) {
+                        <img [src]="member.avatarUrl" alt="" class="member-avatar-img" />
+                      } @else {
+                        {{ member.avatar || member.name?.charAt(0) || '?' }}
+                      }
+                    </span>
                     <span class="member-name">{{ member.name }}</span>
                     <span class="member-coins">
                       <span class="star-mini">⭐</span>
@@ -280,8 +286,12 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
             <div class="portrait-members">
               @for (member of members$ | async; track member.id) {
                 <div class="portrait-member">
-                  <div class="member-planet" [class]="getMemberColor(member.role)">
-                    <span class="member-initial">{{ member.name?.charAt(0) }}</span>
+                  <div class="member-planet" [class]="getMemberColor(member.role)" [class.has-image]="member.avatarUrl">
+                    @if (member.avatarUrl) {
+                      <img [src]="member.avatarUrl" alt="" class="portrait-avatar-img" />
+                    } @else {
+                      <span class="member-initial">{{ member.avatar || member.name?.charAt(0) || '?' }}</span>
+                    }
                     <div class="member-chinchilla">🐿️</div>
                   </div>
                   <p class="member-label">{{ member.name }}</p>
@@ -671,12 +681,6 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
 
     .unicorn-dashboard .empty-hero {
       font-size: 5rem !important;
-      animation: unicorn-prance 2s ease-in-out infinite !important;
-    }
-
-    @keyframes unicorn-prance {
-      0%, 100% { transform: translateY(0) rotate(-5deg); }
-      50% { transform: translateY(-15px) rotate(5deg); }
     }
 
     .unicorn-dashboard .empty-text {
@@ -843,7 +847,6 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       bottom: 8px;
       left: 8px;
       font-size: 1.25rem;
-      animation: bounce 2s ease-in-out infinite;
     }
 
     .widget-mascot.crown::before, .planet-mascot.crown::before {
@@ -1211,6 +1214,17 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       font-size: 0.8rem;
     }
 
+    .member-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .member-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     .member-name {
       flex: 1;
       color: rgba(255,255,255,0.8);
@@ -1404,6 +1418,17 @@ import { TasksStore, HouseholdStore, RewardsStore } from '../../../core/stores';
       margin: 0 auto 8px;
       position: relative;
       box-shadow: 0 0 25px rgba(255,255,255,0.2);
+    }
+
+    .member-planet.has-image {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .portrait-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .member-planet.parent {

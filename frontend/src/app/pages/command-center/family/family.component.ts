@@ -147,7 +147,7 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
                     <span class="mood">{{ getMoodEmoji(member.currentMood) }}</span>
                   }
                 </div>
-                @if ((isAdmin$ | async) && member.id !== (user$ | async)?.id) {
+                @if (isAdmin$ | async) {
                   <div class="member-actions">
                     <button class="action-btn edit" (click)="openEditModal(member)" title="ערוך">✏️</button>
                     @if (member.role === 'KID') {
@@ -210,10 +210,13 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
               </div>
               <div class="form-group">
                 <label><span class="label-icon">🎭</span> תפקיד</label>
-                <select [(ngModel)]="editForm.role" name="role" class="cosmic-input">
+                <select [(ngModel)]="editForm.role" name="role" class="cosmic-input" [disabled]="selectedMember?.id === (user$ | async)?.id">
                   <option value="ADULT">👨‍👩‍👧 הורה</option>
                   <option value="KID">🧒 ילד</option>
                 </select>
+                @if (selectedMember?.id === (user$ | async)?.id) {
+                  <p class="field-hint">לא ניתן לשנות את התפקיד שלך</p>
+                }
               </div>
               <div class="modal-actions">
                 <button type="button" class="btn-cancel" (click)="closeEditModal()">ביטול</button>
@@ -1310,6 +1313,13 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
       margin: 0;
       color: rgba(255,255,255,0.4);
       font-size: 0.75rem;
+    }
+
+    .field-hint {
+      margin: 8px 0 0;
+      color: rgba(255,255,255,0.5);
+      font-size: 0.75rem;
+      text-align: center;
     }
 
     /* Responsive */

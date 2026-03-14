@@ -70,16 +70,24 @@ interface DropZone {
                 cdkDrag
                 [cdkDragData]="member"
               >
-                <div class="avatar-circle" [style.background]="getAvatarGradient(member.role)">
-                  <span class="avatar-emoji">{{ member.avatar || member.name?.charAt(0) || '?' }}</span>
+                <div class="avatar-circle" [style.background]="getAvatarGradient(member.role)" [class.has-image]="member.avatarUrl">
+                  @if (member.avatarUrl) {
+                    <img [src]="member.avatarUrl" alt="" class="avatar-circle-img" />
+                  } @else {
+                    <span class="avatar-emoji">{{ member.avatar || member.name?.charAt(0) || '?' }}</span>
+                  }
                 </div>
                 <span class="avatar-name">{{ member.name }}</span>
                 <div class="avatar-glow"></div>
 
                 <!-- Drag Preview -->
                 <div *cdkDragPreview class="drag-preview">
-                  <div class="preview-avatar" [style.background]="getAvatarGradient(member.role)">
-                    {{ member.avatar || member.name?.charAt(0) || '?' }}
+                  <div class="preview-avatar" [style.background]="getAvatarGradient(member.role)" [class.has-image]="member.avatarUrl">
+                    @if (member.avatarUrl) {
+                      <img [src]="member.avatarUrl" alt="" class="preview-avatar-img" />
+                    } @else {
+                      {{ member.avatar || member.name?.charAt(0) || '?' }}
+                    }
                   </div>
                   <span>{{ member.name }}</span>
                 </div>
@@ -119,8 +127,12 @@ interface DropZone {
                       @for (item of getItemsForZone(day, category); track item.id) {
                         <div class="logistics-item" [class.has-assignee]="item.assignedTo">
                           @if (item.assignedTo) {
-                            <div class="item-avatar" [style.background]="getAvatarGradient(item.assignedTo.role || 'KID')">
-                              {{ item.assignedTo.avatar || item.assignedTo.name?.charAt(0) || '?' }}
+                            <div class="item-avatar" [style.background]="getAvatarGradient(item.assignedTo.role || 'KID')" [class.has-image]="item.assignedTo.avatarUrl">
+                              @if (item.assignedTo.avatarUrl) {
+                                <img [src]="item.assignedTo.avatarUrl" alt="" class="item-avatar-img" />
+                              } @else {
+                                {{ item.assignedTo.avatar || item.assignedTo.name?.charAt(0) || '?' }}
+                              }
                             </div>
                           } @else {
                             <div class="item-avatar unassigned">?</div>
@@ -205,8 +217,12 @@ interface DropZone {
                       [class.selected]="itemForm.assignedToId === member.id"
                       (click)="itemForm.assignedToId = member.id"
                     >
-                      <span class="assignee-avatar" [style.background]="getAvatarGradient(member.role)">
-                        {{ member.avatar || member.name?.charAt(0) }}
+                      <span class="assignee-avatar" [style.background]="getAvatarGradient(member.role)" [class.has-image]="member.avatarUrl">
+                        @if (member.avatarUrl) {
+                          <img [src]="member.avatarUrl" alt="" class="assignee-avatar-img" />
+                        } @else {
+                          {{ member.avatar || member.name?.charAt(0) }}
+                        }
                       </span>
                       <span>{{ member.name }}</span>
                     </button>
@@ -696,6 +712,17 @@ interface DropZone {
 
     .avatar-emoji { font-size: 1.4rem; }
 
+    .avatar-circle.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .avatar-circle-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     .avatar-name {
       font-size: 0.75rem;
       font-weight: 600;
@@ -733,6 +760,17 @@ interface DropZone {
       justify-content: center;
       color: white;
       font-size: 1rem;
+    }
+
+    .preview-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .preview-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .cdk-drag-preview { z-index: 1000 !important; }
@@ -830,6 +868,17 @@ interface DropZone {
       font-size: 0.75rem;
       font-weight: 700;
       flex-shrink: 0;
+    }
+
+    .item-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .item-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .item-avatar.unassigned {
@@ -1007,6 +1056,17 @@ interface DropZone {
       color: white;
       font-weight: 700;
       font-size: 0.85rem;
+    }
+
+    .assignee-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .assignee-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .modal-actions {

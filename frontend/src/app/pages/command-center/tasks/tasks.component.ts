@@ -131,7 +131,13 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
               <div class="task-meta">
                 @if (task.assignedTo) {
                   <span class="meta-item assignee">
-                    <span class="avatar">{{ task.assignedTo.name.charAt(0) }}</span>
+                    <span class="avatar" [class.has-image]="task.assignedTo.avatarUrl">
+                      @if (task.assignedTo.avatarUrl) {
+                        <img [src]="task.assignedTo.avatarUrl" alt="" class="avatar-img" />
+                      } @else {
+                        {{ task.assignedTo.name.charAt(0) }}
+                      }
+                    </span>
                     {{ task.assignedTo.name }}
                   </span>
                 }
@@ -853,6 +859,17 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
       font-size: 0.7rem;
       color: white;
       font-weight: 700;
+    }
+
+    .meta-item.assignee .avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .meta-item.assignee .avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .meta-item.overdue {

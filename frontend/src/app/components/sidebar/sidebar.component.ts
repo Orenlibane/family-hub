@@ -20,8 +20,12 @@ import { AuthService, ThemeService } from '../../core/services';
 
       <!-- User Info -->
       <div class="user-section">
-        <div class="user-avatar" [class.emoji-avatar]="(user$ | async)?.avatar">
-          {{ (user$ | async)?.avatar || (user$ | async)?.name?.charAt(0) || '?' }}
+        <div class="user-avatar" [class.emoji-avatar]="(user$ | async)?.avatar && !(user$ | async)?.avatarUrl" [class.has-image]="(user$ | async)?.avatarUrl">
+          @if ((user$ | async)?.avatarUrl) {
+            <img [src]="(user$ | async)!.avatarUrl" alt="Avatar" class="avatar-image" />
+          } @else {
+            {{ (user$ | async)?.avatar || (user$ | async)?.name?.charAt(0) || '?' }}
+          }
         </div>
         <div class="user-info">
           <p class="user-name">{{ (user$ | async)?.name }}</p>
@@ -133,6 +137,17 @@ import { AuthService, ThemeService } from '../../core/services';
       font-size: 1.8rem;
       background: var(--theme-surface-hover);
       border: 2px solid var(--theme-border);
+    }
+
+    .user-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .user-info {

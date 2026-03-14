@@ -197,8 +197,12 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
           </div>
 
           <div class="account-info">
-            <div class="account-avatar" [class.emoji-avatar]="(user$ | async)?.avatar">
-              {{ (user$ | async)?.avatar || (user$ | async)?.name?.charAt(0) || '?' }}
+            <div class="account-avatar" [class.emoji-avatar]="(user$ | async)?.avatar && !(user$ | async)?.avatarUrl" [class.has-image]="(user$ | async)?.avatarUrl">
+              @if ((user$ | async)?.avatarUrl) {
+                <img [src]="(user$ | async)!.avatarUrl" alt="Avatar" class="account-avatar-img" />
+              } @else {
+                {{ (user$ | async)?.avatar || (user$ | async)?.name?.charAt(0) || '?' }}
+              }
             </div>
             <div class="account-details">
               <h3>{{ (user$ | async)?.name }}</h3>
@@ -775,6 +779,17 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
       font-size: 2.5rem;
       background: var(--theme-surface-hover);
       border: 2px solid var(--theme-border);
+    }
+
+    .account-avatar.has-image {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .account-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .account-details h3 {
