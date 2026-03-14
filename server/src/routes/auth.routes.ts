@@ -197,7 +197,6 @@ router.post('/child/login', async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        avatar: user.avatar,
         avatarUrl: user.avatarUrl,
         famCoins: user.famCoins
       },
