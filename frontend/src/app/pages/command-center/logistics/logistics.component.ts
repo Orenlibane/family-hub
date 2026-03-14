@@ -60,6 +60,31 @@ interface DropZone {
           </div>
         </header>
 
+        <!-- Week Navigation -->
+        <div class="week-nav">
+          <button class="nav-btn" (click)="previousWeek()" [title]="'שבוע קודם'">
+            <span class="nav-arrow">◀</span>
+            <span class="nav-label">קודם</span>
+          </button>
+
+          <div class="week-indicator">
+            <div class="week-title">{{ getWeekTitle() }}</div>
+            <div class="week-dates">
+              {{ formatDate(weekStartDate) }} - {{ formatDate(weekEndDate) }}
+            </div>
+            @if (currentWeekOffset !== 0) {
+              <button class="back-to-current" (click)="goToCurrentWeek()">
+                חזור לשבוע הנוכחי ⚡
+              </button>
+            }
+          </div>
+
+          <button class="nav-btn" (click)="nextWeek()" [title]="'שבוע הבא'">
+            <span class="nav-label">הבא</span>
+            <span class="nav-arrow">▶</span>
+          </button>
+        </div>
+
         <!-- Avatar Dock - Make it a drop list source -->
         <div class="avatar-dock" cdkDropList #avatarList="cdkDropList" [cdkDropListData]="membersArray" [cdkDropListConnectedTo]="dropListIds" cdkDropListSortingDisabled>
           <div class="dock-label">גרור אותי לזון! 👇</div>
@@ -99,13 +124,19 @@ interface DropZone {
         <!-- Week Grid -->
         <div class="week-grid">
           @for (day of [0,1,2,3,4,5,6]; track day) {
-            <div class="day-card" [class.shabbat]="day === 6">
+            <div class="day-card" [class.shabbat]="day === 6" [class.today]="isToday(day)">
               <div class="day-header">
-                <span class="day-icon">{{ getDayIcon(day) }}</span>
-                <span class="day-name">יום {{ hebrewDays[day] }}</span>
-                @if (day === 6) {
-                  <span class="shabbat-icon">✡️</span>
-                }
+                <div class="day-title-row">
+                  <span class="day-icon">{{ getDayIcon(day) }}</span>
+                  <span class="day-name">יום {{ hebrewDays[day] }}</span>
+                  @if (day === 6) {
+                    <span class="shabbat-icon">✡️</span>
+                  }
+                  @if (isToday(day)) {
+                    <span class="today-badge">היום</span>
+                  }
+                </div>
+                <div class="day-date">{{ formatDate(getDateForDay(day)) }}</div>
               </div>
 
               <div class="day-zones">
@@ -660,24 +691,101 @@ interface DropZone {
       50% { transform: translateY(-8px); }
     }
 
+    /* Week Navigation */
+    .week-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      backdrop-filter: blur(12px);
+      border-radius: 24px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+
+    .nav-arrow {
+      font-size: 1.2rem;
+    }
+
+    .nav-label {
+      font-size: 0.95rem;
+    }
+
+    .week-indicator {
+      flex: 1;
+      text-align: center;
+    }
+
+    .week-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 4px;
+    }
+
+    .week-dates {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.8);
+      font-weight: 500;
+    }
+
+    .back-to-current {
+      margin-top: 8px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .back-to-current:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+    }
+
     /* Avatar Dock */
     .avatar-dock {
       backdrop-filter: blur(12px);
       border-radius: 24px;
-      padding: 16px 20px;
-      margin-bottom: 20px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
     }
 
     .dock-label {
       text-align: center;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       font-weight: 600;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
+      color: rgba(255,255,255,0.9);
     }
 
     .avatars-row {
       display: flex;
-      gap: 16px;
+      gap: 20px;
       justify-content: center;
       flex-wrap: wrap;
     }
@@ -780,59 +888,94 @@ interface DropZone {
     /* Week Grid */
     .week-grid {
       display: flex;
-      gap: 12px;
+      gap: 16px;
       overflow-x: auto;
       padding-bottom: 20px;
+      padding-top: 8px;
     }
 
     .day-card {
-      flex: 0 0 280px;
+      flex: 0 0 320px;
       backdrop-filter: blur(12px);
       border-radius: 24px;
       overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .day-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .day-card.today {
+      box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.6);
     }
 
     .day-header {
+      padding: 16px 20px;
+    }
+
+    .day-title-row {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 14px 16px;
+      margin-bottom: 6px;
     }
 
-    .day-icon { font-size: 1.3rem; }
-    .day-name { font-weight: 700; font-size: 1rem; }
-    .shabbat-icon { margin-right: auto; font-size: 1.2rem; }
+    .day-icon { font-size: 1.4rem; }
+    .day-name { font-weight: 700; font-size: 1.05rem; }
+    .shabbat-icon { margin-right: auto; font-size: 1.3rem; }
+
+    .today-badge {
+      padding: 4px 10px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      margin-right: auto;
+    }
+
+    .day-date {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.7);
+      font-weight: 500;
+      padding-right: 40px;
+    }
 
     .day-zones {
-      padding: 12px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
     }
 
     .drop-zone {
-      border-radius: 16px;
-      padding: 10px;
-      min-height: 80px;
-      transition: all 0.2s;
+      border-radius: 18px;
+      padding: 14px;
+      min-height: 100px;
+      transition: all 0.3s;
+    }
+
+    .drop-zone:hover {
+      transform: scale(1.02);
     }
 
     .zone-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      padding: 4px 8px;
-      border-radius: 10px;
-      font-size: 0.8rem;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 12px;
+      font-size: 0.85rem;
       font-weight: 600;
     }
 
     .zone-items {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      min-height: 40px;
+      gap: 10px;
+      min-height: 50px;
     }
 
     .empty-zone {
@@ -850,22 +993,28 @@ interface DropZone {
     .logistics-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
+      gap: 12px;
+      padding: 12px 14px;
       background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      border-radius: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+    }
+
+    .logistics-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     }
 
     .item-avatar {
-      width: 28px;
-      height: 28px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-size: 0.75rem;
+      font-size: 0.85rem;
       font-weight: 700;
       flex-shrink: 0;
     }
@@ -893,9 +1042,9 @@ interface DropZone {
 
     .item-title {
       display: block;
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       color: #374151;
-      font-weight: 500;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -903,8 +1052,9 @@ interface DropZone {
 
     .item-time {
       display: block;
-      font-size: 0.7rem;
+      font-size: 0.75rem;
       color: #9ca3af;
+      margin-top: 2px;
     }
 
     .item-remove {
@@ -927,14 +1077,19 @@ interface DropZone {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
       width: 100%;
-      padding: 8px;
-      border-radius: 10px;
-      font-size: 0.85rem;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
-      margin-top: 8px;
+      transition: all 0.3s;
+      margin-top: 10px;
+    }
+
+    .add-item-btn:hover {
+      transform: translateY(-2px);
     }
 
     /* Save FAB */
@@ -1125,6 +1280,11 @@ export class LogisticsComponent {
   showAddModal = false;
   membersArray: User[] = [];
 
+  // Week navigation
+  currentWeekOffset = 0; // 0 = current week, -1 = last week, +1 = next week
+  weekStartDate: Date = new Date();
+  weekEndDate: Date = new Date();
+
   // Generate drop list IDs for connecting
   dropListIds: string[] = [];
 
@@ -1147,6 +1307,7 @@ export class LogisticsComponent {
       }
     }
 
+    this.calculateWeekDates();
     this.logisticsStore.loadItems();
     this.householdStore.loadHousehold();
 
@@ -1164,6 +1325,74 @@ export class LogisticsComponent {
       this.membersArray = members;
       this.cdr.markForCheck();
     });
+  }
+
+  calculateWeekDates(): void {
+    const today = new Date();
+    const currentDay = today.getDay(); // 0 = Sunday
+
+    // Calculate start of week (Sunday)
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay + (this.currentWeekOffset * 7));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    // Calculate end of week (Saturday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    this.weekStartDate = startOfWeek;
+    this.weekEndDate = endOfWeek;
+  }
+
+  previousWeek(): void {
+    this.currentWeekOffset--;
+    this.calculateWeekDates();
+    this.cdr.markForCheck();
+  }
+
+  nextWeek(): void {
+    this.currentWeekOffset++;
+    this.calculateWeekDates();
+    this.cdr.markForCheck();
+  }
+
+  goToCurrentWeek(): void {
+    this.currentWeekOffset = 0;
+    this.calculateWeekDates();
+    this.cdr.markForCheck();
+  }
+
+  getWeekTitle(): string {
+    if (this.currentWeekOffset === 0) {
+      return 'השבוע';
+    } else if (this.currentWeekOffset === -1) {
+      return 'שבוע שעבר';
+    } else if (this.currentWeekOffset === 1) {
+      return 'שבוע הבא';
+    } else if (this.currentWeekOffset < 0) {
+      return `לפני ${Math.abs(this.currentWeekOffset)} שבועות`;
+    } else {
+      return `בעוד ${this.currentWeekOffset} שבועות`;
+    }
+  }
+
+  getDateForDay(dayOfWeek: number): Date {
+    const date = new Date(this.weekStartDate);
+    date.setDate(this.weekStartDate.getDate() + dayOfWeek);
+    return date;
+  }
+
+  formatDate(date: Date): string {
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    return `${day}/${month}`;
+  }
+
+  isToday(dayOfWeek: number): boolean {
+    const today = new Date();
+    const dayDate = this.getDateForDay(dayOfWeek);
+    return today.toDateString() === dayDate.toDateString();
   }
 
   getDayIcon(day: number): string {
