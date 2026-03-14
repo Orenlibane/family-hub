@@ -111,7 +111,7 @@ import { Router } from '@angular/router';
                     type="text"
                     [(ngModel)]="kidLogin.username"
                     name="username"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-400 focus:outline-none transition-colors text-lg"
+                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-400 focus:outline-none transition-colors text-lg text-gray-900"
                     placeholder="הכנס שם משתמש"
                     required
                   />
@@ -125,7 +125,7 @@ import { Router } from '@angular/router';
                     maxlength="6"
                     pattern="[0-9]*"
                     inputmode="numeric"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-400 focus:outline-none transition-colors text-center text-2xl tracking-widest"
+                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-400 focus:outline-none transition-colors text-center text-2xl tracking-widest text-gray-900"
                     placeholder="****"
                     required
                   />

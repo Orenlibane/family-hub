@@ -1294,7 +1294,39 @@ export class SettingsComponent {
   copyInviteCode(): void {
     this.household$.subscribe(h => {
       if (h?.inviteCode) {
-        navigator.clipboard.writeText(h.inviteCode);
+        // Try modern clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(h.inviteCode)
+            .then(() => {
+              this.copied = true;
+              this.showToast('הקוד הועתק!', '📋', 'success');
+              setTimeout(() => {
+                this.copied = false;
+                this.cdr.markForCheck();
+              }, 2000);
+            })
+            .catch(err => {
+              console.error('Clipboard failed:', err);
+              this.fallbackCopy(h.inviteCode);
+            });
+        } else {
+          this.fallbackCopy(h.inviteCode);
+        }
+      }
+    }).unsubscribe();
+  }
+
+  private fallbackCopy(text: string): void {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
         this.copied = true;
         this.showToast('הקוד הועתק!', '📋', 'success');
         setTimeout(() => {
@@ -1302,7 +1334,12 @@ export class SettingsComponent {
           this.cdr.markForCheck();
         }, 2000);
       }
-    }).unsubscribe();
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+      this.showToast('שגיאה בהעתקה', '❌', 'info');
+    } finally {
+      document.body.removeChild(textArea);
+    }
   }
 
   generateNewCode(): void {

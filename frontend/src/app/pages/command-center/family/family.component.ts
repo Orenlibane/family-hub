@@ -1578,16 +1578,60 @@ export class FamilyComponent {
 
   copyInviteLink(): void {
     const household = this.authService.getSnapshot().household;
-    if (household) {
-      const link = `${window.location.origin}/join/${household.inviteCode}`;
-      navigator.clipboard.writeText(link).then(() => {
+    if (!household) {
+      console.error('No household found');
+      return;
+    }
+
+    const link = `${window.location.origin}/join/${household.inviteCode}`;
+
+    // Try modern clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link)
+        .then(() => {
+          this.showCopyToast = true;
+          this.cdr.markForCheck();
+          setTimeout(() => {
+            this.showCopyToast = false;
+            this.cdr.markForCheck();
+          }, 3000);
+        })
+        .catch(err => {
+          console.error('Clipboard API failed:', err);
+          this.fallbackCopyToClipboard(link);
+        });
+    } else {
+      // Fallback for older browsers or HTTP
+      this.fallbackCopyToClipboard(link);
+    }
+  }
+
+  private fallbackCopyToClipboard(text: string): void {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
         this.showCopyToast = true;
         this.cdr.markForCheck();
         setTimeout(() => {
           this.showCopyToast = false;
           this.cdr.markForCheck();
         }, 3000);
-      });
+      } else {
+        console.error('Fallback copy failed');
+      }
+    } catch (err) {
+      console.error('Fallback copy error:', err);
+    } finally {
+      document.body.removeChild(textArea);
     }
   }
 
