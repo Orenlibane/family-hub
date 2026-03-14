@@ -315,6 +315,9 @@ export class SidebarComponent {
     { path: '/command-center/rewards', label: 'פרסים', icon: '🎁', exact: false },
     { path: '/command-center/family', label: 'משפחה', icon: '👨‍👩‍👧‍👦', exact: false },
     { path: '/command-center/calendar', label: 'יומן', icon: '📅', exact: false },
+    { path: '/command-center/logistics', label: 'לוח שבועי', icon: '📋', exact: false },
+    { path: '/command-center/voting', label: 'הצבעות', icon: '🗳️', exact: false },
+    { path: '/command-center/chat', label: 'צ\'אט', icon: '💬', exact: false },
     { path: '/command-center/settings', label: 'הגדרות', icon: '⚙️', exact: false }
   ];
 
