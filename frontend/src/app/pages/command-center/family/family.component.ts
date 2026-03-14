@@ -1383,7 +1383,7 @@ export class FamilyComponent {
   // Edit modal
   showEditModal = false;
   selectedMember: any = null;
-  editForm = { name: '', role: 'KID' as 'ADULT' | 'KID', avatarUrl: '' };
+  editForm = { name: '', role: 'KID' as 'ADULT' | 'KID', avatar: '', avatarUrl: '' };
   avatarPreview: string | null = null;
 
   // Create child modal
@@ -1405,7 +1405,7 @@ export class FamilyComponent {
   // Edit Modal Methods
   openEditModal(member: any): void {
     this.selectedMember = member;
-    this.editForm = { name: member.name, role: member.role, avatarUrl: member.avatarUrl || '' };
+    this.editForm = { name: member.name, role: member.role, avatar: member.avatar || '', avatarUrl: member.avatarUrl || '' };
     this.avatarPreview = member.avatarUrl || null;
     this.showEditModal = true;
     this.cdr.markForCheck();
@@ -1425,6 +1425,7 @@ export class FamilyComponent {
     const payload: any = {
       name: this.editForm.name,
       role: this.editForm.role,
+      avatar: this.editForm.avatar || null,
       avatarUrl: this.editForm.avatarUrl || null
     };
     this.apiService.patch(`/api/admin/users/${this.selectedMember.id}`, payload)

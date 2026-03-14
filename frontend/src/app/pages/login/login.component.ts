@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService, ApiService } from '../../core/services';
+import { AuthService } from '../../core/services';
 import { Router } from '@angular/router';
 
 @Component({
@@ -188,7 +188,6 @@ import { Router } from '@angular/router';
 })
 export class LoginComponent {
   private readonly authService = inject(AuthService);
-  private readonly apiService = inject(ApiService);
   private readonly router = inject(Router);
   private readonly cdr = inject(ChangeDetectorRef);
 
@@ -208,16 +207,9 @@ export class LoginComponent {
     this.kidLoginError = '';
     this.cdr.markForCheck();
 
-    this.apiService.post<{ token: string, user: any, household: any }>('/auth/child/login', {
-      username: this.kidLogin.username,
-      pin: this.kidLogin.pin
-    }).subscribe({
-      next: (response) => {
-        // Store token
-        localStorage.setItem('auth_token', response.token);
-
-        // Navigate to playground
-        this.router.navigate(['/playground']);
+    this.authService.loginWithPin(this.kidLogin.username, this.kidLogin.pin).subscribe({
+      next: () => {
+        // AuthService handles navigation automatically
         this.isLoggingIn = false;
         this.cdr.markForCheck();
       },

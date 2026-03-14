@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/services';
+import { AuthService, ThemeService, ApiService, UITheme, UserSettings } from '../../../core/services';
 
 @Component({
   selector: 'app-settings',
@@ -1197,6 +1197,7 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
 export class SettingsComponent {
   private readonly authService = inject(AuthService);
   private readonly themeService = inject(ThemeService);
+  private readonly apiService = inject(ApiService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   user$ = this.authService.user$;
@@ -1341,11 +1342,28 @@ export class SettingsComponent {
       return;
     }
 
-    // Save profile to auth service
-    this.authService.updateProfile(this.editProfile.name, this.editProfile.avatar);
-    this.showProfileModal = false;
-    this.showToast('הפרופיל עודכן בהצלחה!', '✅', 'success');
-    this.cdr.markForCheck();
+    const user = this.authService.getSnapshot().user;
+    if (!user) return;
+
+    // Save to backend
+    this.apiService.patch(`/api/admin/users/${user.id}`, {
+      name: this.editProfile.name,
+      avatar: this.editProfile.avatar || null
+    }).subscribe({
+      next: () => {
+        // Update local state
+        this.authService.updateProfile(this.editProfile.name, this.editProfile.avatar);
+        this.authService.checkAuth(); // Refresh user data
+        this.showProfileModal = false;
+        this.showToast('הפרופיל עודכן בהצלחה!', '✅', 'success');
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Error updating profile:', err);
+        this.showToast('שגיאה בעדכון הפרופיל', '❌', 'info');
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   private showToast(message: string, icon: string, type: 'success' | 'info'): void {

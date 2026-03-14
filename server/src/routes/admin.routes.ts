@@ -22,6 +22,7 @@ const createChildSchema = z.object({
 const updateMemberSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   role: z.enum(['ADULT', 'KID']).optional(),
+  avatar: z.string().max(100).optional(), // Emoji avatar
   avatarUrl: z.string().max(500000).optional() // Support base64 images
 });
 
@@ -112,7 +113,7 @@ router.patch('/users/:userId', validate(updateMemberSchema), async (req: Request
     const userId = getString(req.params.userId);
     if (!userId) return res.status(400).json({ message: 'User ID required' });
 
-    const { name, role, avatarUrl } = req.body;
+    const { name, role, avatar, avatarUrl } = req.body;
     const householdId = req.user!.householdId;
 
     // Can't change own role
@@ -135,6 +136,7 @@ router.patch('/users/:userId', validate(updateMemberSchema), async (req: Request
       data: {
         ...(name && { name }),
         ...(role && { role }),
+        ...(avatar !== undefined && { avatar }),
         ...(avatarUrl !== undefined && { avatarUrl })
       },
       include: {

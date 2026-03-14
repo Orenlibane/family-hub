@@ -96,7 +96,8 @@ model User {
   email       String   @unique
   googleId    String?  @unique
   name        String
-  avatarUrl   String?
+  avatar      String?  // Emoji avatar
+  avatarUrl   String?  // Image URL or base64
   role        Role     @default(KID)
   famCoins    Int      @default(0)
   createdAt   DateTime @default(now())

@@ -96,6 +96,7 @@ router.post('/google/callback', async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        avatar: user.avatar,
         avatarUrl: user.avatarUrl,
         famCoins: user.famCoins
       },
@@ -143,6 +144,7 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
         email: fullUser.email,
         name: fullUser.name,
         role: fullUser.role,
+        avatar: fullUser.avatar,
         avatarUrl: fullUser.avatarUrl,
         famCoins: fullUser.famCoins,
         avatarState: fullUser.avatarState
@@ -197,6 +199,7 @@ router.post('/child/login', async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        avatar: user.avatar,
         avatarUrl: user.avatarUrl,
         famCoins: user.famCoins
       },

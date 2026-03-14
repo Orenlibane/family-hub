@@ -115,6 +115,37 @@ export class AuthService {
   }
 
   /**
+   * Login with username and PIN (for kids)
+   */
+  loginWithPin(username: string, pin: string): Observable<AuthResponse> {
+    this.updateState({ isLoading: true, error: null });
+
+    return this.api.post<AuthResponse>('/auth/child/login', { username, pin }).pipe(
+      tap(response => {
+        this.updateState({
+          user: response.user,
+          household: response.household,
+          isAuthenticated: true,
+          isLoading: false
+        });
+
+        this.socket.connect(response.token);
+        this.socket.joinHousehold(response.household.id);
+
+        // Navigate based on role
+        this.navigateByRole(response.user.role);
+      }),
+      catchError(error => {
+        this.updateState({
+          isLoading: false,
+          error: error.error?.message || 'Invalid credentials'
+        });
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
    * Logout
    */
   logout(): void {
