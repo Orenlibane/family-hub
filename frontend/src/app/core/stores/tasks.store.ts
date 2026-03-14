@@ -232,6 +232,30 @@ export class TasksStore implements OnDestroy {
   }
 
   /**
+   * Approve task completion and award coins (adults only)
+   */
+  approveTaskCompletion(taskId: string, completedById: string): Observable<Task> {
+    this.updateState({ isLoading: true, error: null });
+
+    return this.api.post<Task>(`/api/tasks/${taskId}/approve-completion`, { completedById }).pipe(
+      tap(task => {
+        const current = this._state$.value.tasks;
+        this.updateState({
+          tasks: current.map(t => t.id === task.id ? task : t),
+          isLoading: false
+        });
+      }),
+      catchError(error => {
+        this.updateState({
+          isLoading: false,
+          error: error.message || 'Failed to approve task completion'
+        });
+        throw error;
+      })
+    );
+  }
+
+  /**
    * Delete a task
    */
   deleteTask(taskId: string): Observable<void> {

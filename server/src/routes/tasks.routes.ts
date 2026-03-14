@@ -204,6 +204,91 @@ router.patch('/:id', validate(updateTaskSchema), async (req: Request, res: Respo
 });
 
 /**
+ * POST /api/tasks/:id/approve-completion
+ * Approve task completion and award coins (adults only)
+ */
+router.post('/:id/approve-completion', requireAdult, async (req: Request, res: Response) => {
+  try {
+    const id = getString(req.params.id);
+    if (!id) return res.status(400).json({ message: 'Task ID required' });
+
+    const { completedById } = req.body;
+    if (!completedById) {
+      return res.status(400).json({ message: 'Completed by user ID required' });
+    }
+
+    // Get task
+    const task = await prisma.task.findFirst({
+      where: {
+        id,
+        householdId: req.user!.householdId
+      }
+    });
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    // Verify completedBy user exists in household
+    const completedByUser = await prisma.user.findFirst({
+      where: {
+        id: completedById,
+        householdId: req.user!.householdId
+      }
+    });
+
+    if (!completedByUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update task and award coins in transaction
+    const [updatedTask, updatedUser] = await prisma.$transaction([
+      prisma.task.update({
+        where: { id },
+        data: {
+          status: 'COMPLETED',
+          completedById,
+          completedAt: new Date()
+        },
+        include: {
+          assignedTo: {
+            select: { id: true, name: true, avatarUrl: true }
+          },
+          createdBy: {
+            select: { id: true, name: true }
+          },
+          completedBy: {
+            select: { id: true, name: true, avatarUrl: true }
+          }
+        }
+      }),
+      prisma.user.update({
+        where: { id: completedById },
+        data: {
+          famCoins: { increment: task.coinReward }
+        }
+      })
+    ]);
+
+    // Emit task update
+    emitToHousehold(req.user!.householdId, 'task:completed', updatedTask);
+
+    // Emit coin change
+    emitToHousehold(req.user!.householdId, 'coins:changed', {
+      userId: completedById,
+      amount: task.coinReward,
+      newBalance: updatedUser.famCoins,
+      reason: `Completed: ${task.title}`
+    });
+
+    res.json(updatedTask);
+  } catch (error) {
+    console.error('[Tasks] Approve completion error:', error);
+    res.status(500).json({ message: 'Failed to approve task completion' });
+  }
+});
+
+/**
  * DELETE /api/tasks/:id
  * Delete task (adults only)
  */

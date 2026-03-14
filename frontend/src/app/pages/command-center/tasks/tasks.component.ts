@@ -158,24 +158,33 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
                     <span class="robot-helper waiting">🤖 מחכה למישהו...</span>
                   }
                   @case ('IN_PROGRESS') {
-                    <span class="robot-helper working">🤖 בעבודה!</span>
+                    <span class="robot-helper working">👀 ממתין לאישור הורה</span>
                   }
                   @case ('COMPLETED') {
                     <span class="robot-helper done">🤖 סיימנו! 🎉</span>
                   }
                 }
               </div>
+
+              <!-- Approve Button for Adults (when IN_PROGRESS) -->
+              @if ((isAdult$ | async) && task.status === 'IN_PROGRESS') {
+                <button class="approve-btn" (click)="openApprovalModal(task)">
+                  ✅ אשר השלמה
+                </button>
+              }
             </div>
 
             <!-- Actions -->
-            <div class="task-actions">
-              <button class="action-btn edit" (click)="openEditModal(task)" title="עריכה">
-                ✏️
-              </button>
-              <button class="action-btn delete" (click)="deleteTask(task)" title="מחיקה">
-                🗑️
-              </button>
-            </div>
+            @if (isAdult$ | async) {
+              <div class="task-actions">
+                <button class="action-btn edit" (click)="openEditModal(task)" title="עריכה">
+                  ✏️
+                </button>
+                <button class="action-btn delete" (click)="deleteTask(task)" title="מחיקה">
+                  🗑️
+                </button>
+              </div>
+            }
           </div>
         } @empty {
           <div class="empty-state">
@@ -340,6 +349,56 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      }
+
+      <!-- Approval Modal -->
+      @if (showApprovalModal && taskToApprove) {
+        <div class="modal-overlay" (click)="closeApprovalModal()">
+          <div class="modal-content approval-modal" dir="rtl" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <span class="modal-icon">🎉</span>
+              <h2>אשר השלמת משימה</h2>
+              <span class="modal-mascot">🏆</span>
+            </div>
+
+            <div class="approval-content">
+              <div class="task-info">
+                <h3>{{ taskToApprove.title }}</h3>
+                <div class="reward-display">
+                  <span class="reward-icon">⭐</span>
+                  <span class="reward-amount">{{ taskToApprove.coinReward }} כוכבים</span>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>
+                  <span class="label-icon">👤</span>
+                  מי ביצע את המשימה?
+                </label>
+                <select [(ngModel)]="selectedCompleterId" class="cosmic-select">
+                  <option value="">בחר בן משפחה...</option>
+                  @for (member of members$ | async; track member.id) {
+                    <option [value]="member.id">{{ member.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="modal-actions">
+                <button type="button" class="btn-cancel" (click)="closeApprovalModal()">
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  class="btn-approve"
+                  [disabled]="!selectedCompleterId"
+                  (click)="approveCompletion()"
+                >
+                  <span>✅</span> אשר ותגמל
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       }
@@ -1247,6 +1306,111 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
       box-shadow: 0 8px 25px rgba(107, 33, 168, 0.4);
     }
 
+    /* Approval Flow */
+    .approve-btn {
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    .approve-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    }
+
+    .approval-modal {
+      max-width: 500px;
+    }
+
+    .approval-content {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .task-info {
+      text-align: center;
+      padding: 20px;
+      background: rgba(107, 33, 168, 0.1);
+      border-radius: 16px;
+      border: 1px solid rgba(107, 33, 168, 0.3);
+    }
+
+    .task-info h3 {
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 16px 0;
+    }
+
+    .reward-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      border-radius: 16px;
+      box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+    }
+
+    .reward-icon {
+      font-size: 28px;
+      animation: pulse-reward 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-reward {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .reward-amount {
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .cosmic-select {
+      width: 100%;
+      padding: 14px;
+      background: rgba(30, 20, 50, 0.8);
+      border: 2px solid rgba(107, 33, 168, 0.4);
+      border-radius: 12px;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      direction: rtl;
+    }
+
+    .cosmic-select:hover {
+      border-color: rgba(107, 33, 168, 0.6);
+    }
+
+    .cosmic-select:focus {
+      outline: none;
+      border-color: #6b21a8;
+      box-shadow: 0 0 0 3px rgba(107, 33, 168, 0.2);
+    }
+
+    .cosmic-select option {
+      background: #1a0a2e;
+      color: white;
+      padding: 10px;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .tasks-page {
@@ -1340,10 +1504,18 @@ export class TasksComponent {
   editingTask: Task | null = null;
   taskForm: Partial<CreateTaskDto> = this.getEmptyForm();
 
+  // Approval modal
+  showApprovalModal = false;
+  taskToApprove: Task | null = null;
+  selectedCompleterId = '';
+
+  isAdult$ = this.authService.isAdult$;
+  members$ = this.householdStore.members$;
+
   statusFilters: { value: TaskStatus | '', label: string, icon: string }[] = [
     { value: '', label: 'הכל', icon: '🌍' },
     { value: 'PENDING', label: 'ממתין', icon: '⏳' },
-    { value: 'IN_PROGRESS', label: 'בתהליך', icon: '🔄' },
+    { value: 'IN_PROGRESS', label: 'ממתין לאישור', icon: '👀' },
     { value: 'COMPLETED', label: 'הושלם', icon: '✅' }
   ];
 
@@ -1430,9 +1602,14 @@ export class TasksComponent {
 
   toggleComplete(task: Task): void {
     if (task.status === 'COMPLETED') {
+      // Unmark as complete (adults only)
+      this.tasksStore.updateTask(task.id, { status: 'PENDING' }).subscribe();
+    } else if (task.status === 'IN_PROGRESS') {
+      // Unmark as done - back to pending
       this.tasksStore.updateTask(task.id, { status: 'PENDING' }).subscribe();
     } else {
-      this.tasksStore.completeTask(task.id).subscribe();
+      // Mark as "done" - goes to IN_PROGRESS (awaiting approval)
+      this.tasksStore.updateTask(task.id, { status: 'IN_PROGRESS' }).subscribe();
     }
   }
 
@@ -1440,6 +1617,32 @@ export class TasksComponent {
     if (confirm(`למחוק את "${task.title}"?`)) {
       this.tasksStore.deleteTask(task.id).subscribe();
     }
+  }
+
+  openApprovalModal(task: Task): void {
+    this.taskToApprove = task;
+    this.selectedCompleterId = task.assignedToId || '';
+    this.showApprovalModal = true;
+  }
+
+  closeApprovalModal(): void {
+    this.showApprovalModal = false;
+    this.taskToApprove = null;
+    this.selectedCompleterId = '';
+  }
+
+  approveCompletion(): void {
+    if (!this.taskToApprove || !this.selectedCompleterId) return;
+
+    this.tasksStore.approveTaskCompletion(this.taskToApprove.id, this.selectedCompleterId).subscribe({
+      next: () => {
+        this.closeApprovalModal();
+      },
+      error: (err) => {
+        alert('שגיאה באישור המשימה');
+        console.error(err);
+      }
+    });
   }
 
   isOverdue(task: Task): boolean {
