@@ -197,8 +197,8 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
           </div>
 
           <div class="account-info">
-            <div class="account-avatar">
-              {{ (user$ | async)?.name?.charAt(0) || '?' }}
+            <div class="account-avatar" [class.emoji-avatar]="(user$ | async)?.avatar">
+              {{ (user$ | async)?.avatar || (user$ | async)?.name?.charAt(0) || '?' }}
             </div>
             <div class="account-details">
               <h3>{{ (user$ | async)?.name }}</h3>
@@ -210,7 +210,7 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
           </div>
 
           <div class="button-group">
-            <button class="btn-secondary">
+            <button class="btn-secondary" (click)="openProfileEdit()">
               <span>✏️</span> ערוך פרופיל
             </button>
             <button class="btn-secondary">
@@ -265,6 +265,60 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
         <button class="save-fab" (click)="saveSettings()">
           <span>💾</span> שמור שינויים
         </button>
+      }
+
+      <!-- Profile Edit Modal -->
+      @if (showProfileModal) {
+        <div class="modal-overlay" (click)="closeProfileEdit()">
+          <div class="modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h2>✏️ עריכת פרופיל</h2>
+              <button class="modal-close" (click)="closeProfileEdit()">✕</button>
+            </div>
+
+            <div class="modal-body">
+              <!-- Avatar Selection -->
+              <div class="form-group">
+                <label>בחר אווטאר</label>
+                <div class="avatar-grid">
+                  @for (avatar of avatarOptions; track avatar) {
+                    <button
+                      class="avatar-option"
+                      [class.selected]="editProfile.avatar === avatar"
+                      (click)="selectAvatar(avatar)"
+                    >
+                      {{ avatar }}
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Name Input -->
+              <div class="form-group">
+                <label>שם</label>
+                <input
+                  type="text"
+                  [(ngModel)]="editProfile.name"
+                  class="form-input"
+                  placeholder="הכנס את השם שלך"
+                />
+              </div>
+
+              <!-- Preview -->
+              <div class="profile-preview">
+                <div class="preview-avatar">{{ editProfile.avatar || editProfile.name?.charAt(0) || '?' }}</div>
+                <span class="preview-name">{{ editProfile.name || 'ללא שם' }}</span>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn-cancel" (click)="closeProfileEdit()">ביטול</button>
+              <button class="btn-save" (click)="saveProfile()">
+                <span>💾</span> שמור
+              </button>
+            </div>
+          </div>
+        </div>
       }
 
       <!-- Toast Messages -->
@@ -717,6 +771,12 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
       font-weight: 700;
     }
 
+    .account-avatar.emoji-avatar {
+      font-size: 2.5rem;
+      background: var(--theme-surface-hover);
+      border: 2px solid var(--theme-border);
+    }
+
     .account-details h3 {
       color: var(--theme-text);
       font-size: 1.1rem;
@@ -907,6 +967,188 @@ import { AuthService, ThemeService, UITheme, UserSettings } from '../../../core/
       }
     }
 
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      animation: fade-in 0.2s ease-out;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .modal {
+      background: var(--theme-surface);
+      border: 1px solid var(--theme-border);
+      border-radius: 24px;
+      width: 90%;
+      max-width: 420px;
+      padding: 24px;
+      animation: modal-slide-in 0.3s ease-out;
+    }
+
+    @keyframes modal-slide-in {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .modal-header h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--theme-text);
+      margin: 0;
+    }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--theme-surface-hover);
+      border: 1px solid var(--theme-border);
+      color: var(--theme-text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--theme-error);
+      color: white;
+      border-color: var(--theme-error);
+    }
+
+    .modal-body {
+      margin-bottom: 24px;
+    }
+
+    /* Avatar Grid */
+    .avatar-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .avatar-option {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      background: var(--theme-surface-hover);
+      border: 2px solid transparent;
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .avatar-option:hover {
+      border-color: var(--theme-primary);
+      transform: scale(1.1);
+    }
+
+    .avatar-option.selected {
+      border-color: var(--theme-primary);
+      background: linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.2), rgba(var(--theme-secondary-rgb), 0.1));
+      box-shadow: 0 0 20px var(--theme-glow);
+    }
+
+    /* Profile Preview */
+    .profile-preview {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px;
+      background: var(--theme-surface-hover);
+      border-radius: 16px;
+      border: 1px solid var(--theme-border);
+      margin-top: 16px;
+    }
+
+    .preview-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: white;
+      box-shadow: 0 8px 30px var(--theme-glow);
+    }
+
+    .preview-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--theme-text);
+    }
+
+    /* Modal Footer */
+    .modal-footer {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-cancel {
+      flex: 1;
+      padding: 14px 20px;
+      background: var(--theme-surface-hover);
+      border: 1px solid var(--theme-border);
+      border-radius: 12px;
+      color: var(--theme-text-muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      background: var(--theme-surface);
+      color: var(--theme-text);
+    }
+
+    .btn-save {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-save:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--theme-glow);
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .settings-page {
@@ -967,6 +1209,18 @@ export class SettingsComponent {
   toastMessage = '';
   toastIcon = '';
   toastType: 'success' | 'info' = 'success';
+
+  // Profile Edit Modal
+  showProfileModal = false;
+  editProfile = {
+    name: '',
+    avatar: ''
+  };
+  avatarOptions = [
+    '👨', '👩', '🧑', '👦', '👧', '🧒',
+    '👴', '👵', '🧓', '👶', '🐱', '🐶',
+    '🦊', '🐰', '🐻', '🐼', '🦁', '🐯'
+  ];
 
   constructor() {
     // Load settings
@@ -1042,6 +1296,41 @@ export class SettingsComponent {
 
   logout(): void {
     this.authService.logout();
+  }
+
+  // Profile Edit Methods
+  openProfileEdit(): void {
+    this.user$.subscribe(user => {
+      if (user) {
+        this.editProfile.name = user.name || '';
+        this.editProfile.avatar = '';
+      }
+    }).unsubscribe();
+    this.showProfileModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeProfileEdit(): void {
+    this.showProfileModal = false;
+    this.cdr.markForCheck();
+  }
+
+  selectAvatar(avatar: string): void {
+    this.editProfile.avatar = avatar;
+    this.cdr.markForCheck();
+  }
+
+  saveProfile(): void {
+    if (!this.editProfile.name.trim()) {
+      this.showToast('נא להזין שם', '⚠️', 'info');
+      return;
+    }
+
+    // Save profile to auth service
+    this.authService.updateProfile(this.editProfile.name, this.editProfile.avatar);
+    this.showProfileModal = false;
+    this.showToast('הפרופיל עודכן בהצלחה!', '✅', 'success');
+    this.cdr.markForCheck();
   }
 
   private showToast(message: string, icon: string, type: 'success' | 'info'): void {

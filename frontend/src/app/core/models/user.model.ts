@@ -15,6 +15,7 @@ export interface User {
   googleId?: string;
   role: Role;
   name: string;
+  avatar?: string; // Emoji avatar
   avatarUrl?: string;
   avatarState?: AvatarState;
   famCoins: number;

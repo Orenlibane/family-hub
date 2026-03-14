@@ -158,6 +158,33 @@ export class AuthService {
   }
 
   /**
+   * Update user profile (name and avatar)
+   */
+  updateProfile(name: string, avatar?: string): void {
+    const current = this._state$.value;
+    if (current.user) {
+      const updatedUser = {
+        ...current.user,
+        name,
+        avatar: avatar || current.user.avatar
+      };
+
+      this.updateState({
+        user: updatedUser
+      });
+
+      // Save to localStorage for persistence
+      localStorage.setItem('user_profile', JSON.stringify({
+        name: updatedUser.name,
+        avatar: updatedUser.avatar
+      }));
+
+      // TODO: Call API to persist to backend
+      // this.api.patch('/users/me', { name, avatar }).subscribe();
+    }
+  }
+
+  /**
    * Navigate based on user role
    */
   private navigateByRole(role: Role): void {

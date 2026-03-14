@@ -13,15 +13,15 @@ import { AuthService, ThemeService } from '../../core/services';
       <div class="logo-section">
         <span class="logo-icon">{{ (currentTheme$ | async)?.assets?.mascots?.[0] || '🏠' }}</span>
         <div>
-          <h1>MishpachaHub</h1>
+          <h1>המשפחה שלי</h1>
           <p>מרכז הפיקוד</p>
         </div>
       </div>
 
       <!-- User Info -->
       <div class="user-section">
-        <div class="user-avatar">
-          {{ (user$ | async)?.name?.charAt(0) || '?' }}
+        <div class="user-avatar" [class.emoji-avatar]="(user$ | async)?.avatar">
+          {{ (user$ | async)?.avatar || (user$ | async)?.name?.charAt(0) || '?' }}
         </div>
         <div class="user-info">
           <p class="user-name">{{ (user$ | async)?.name }}</p>
@@ -127,6 +127,12 @@ import { AuthService, ThemeService } from '../../core/services';
       font-size: 1.2rem;
       font-weight: 700;
       color: white;
+    }
+
+    .user-avatar.emoji-avatar {
+      font-size: 1.8rem;
+      background: var(--theme-surface-hover);
+      border: 2px solid var(--theme-border);
     }
 
     .user-info {
