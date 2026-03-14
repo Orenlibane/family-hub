@@ -117,6 +117,9 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
                   @if (task.isMustDo) {
                     <span class="must-do-badge">⚡ חובה!</span>
                   }
+                  @if (task.recurrence && task.recurrence.type === 'weekly') {
+                    <span class="recurring-badge" title="משימה חוזרת שבועית">🔄</span>
+                  }
                 </h3>
                 <div class="task-reward">
                   <span class="coin-icon">🪙</span>
@@ -337,6 +340,52 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
                   <span>⚡</span> סמן כחובה (זוהר במסך הילדים!)
                 </span>
               </label>
+
+              <!-- Recurring Task Toggle -->
+              <label class="must-do-toggle recurring-toggle">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="isRecurring"
+                  (change)="toggleRecurrence()"
+                  name="isRecurring"
+                />
+                <span class="toggle-switch"></span>
+                <span class="toggle-label">
+                  <span>🔄</span> משימה חוזרת שבועית
+                </span>
+              </label>
+
+              <!-- Weekly Days Selection -->
+              @if (isRecurring) {
+                <div class="recurring-section">
+                  <label class="section-label">
+                    <span class="label-icon">📅</span>
+                    בחר ימים:
+                  </label>
+                  <div class="days-grid">
+                    @for (day of [0,1,2,3,4,5,6]; track day) {
+                      <button
+                        type="button"
+                        class="day-btn"
+                        [class.selected]="isDaySelected(day)"
+                        [class.shabbat]="day === 6"
+                        (click)="toggleDay(day)"
+                      >
+                        <span class="day-icon">{{ day === 6 ? '✡️' : '📌' }}</span>
+                        <span class="day-name">{{ getDayLabel(day) }}</span>
+                        <span class="day-short">{{ getDayShort(day) }}</span>
+                      </button>
+                    }
+                  </div>
+                  @if (selectedDays.length === 0) {
+                    <p class="hint-text">💡 בחר לפחות יום אחד</p>
+                  } @else {
+                    <p class="selected-days-text">
+                      ✅ נבחרו {{ selectedDays.length }} ימים
+                    </p>
+                  }
+                </div>
+              }
 
               <!-- Actions -->
               <div class="modal-actions">
@@ -859,6 +908,24 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
       animation: pulse 2s ease-in-out infinite;
     }
 
+    .recurring-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: white;
+      font-weight: 700;
+      margin-right: 8px;
+      animation: rotate-icon 3s linear infinite;
+    }
+
+    @keyframes rotate-icon {
+      0%, 90% { transform: rotate(0deg); }
+      95% { transform: rotate(360deg); }
+      100% { transform: rotate(360deg); }
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.7; }
@@ -1262,6 +1329,121 @@ import { BehaviorSubject, combineLatest, map } from 'rxjs';
       gap: 8px;
     }
 
+    /* Recurring Task Section */
+    .recurring-toggle {
+      background: rgba(139, 92, 246, 0.1);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .recurring-toggle input:checked + .toggle-switch {
+      background: #8b5cf6;
+    }
+
+    .recurring-section {
+      padding: 20px;
+      background: rgba(139, 92, 246, 0.05);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      border-radius: 14px;
+      margin-bottom: 20px;
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.9);
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .day-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 12px 6px;
+      background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 0.75rem;
+    }
+
+    .day-btn:hover {
+      background: rgba(255,255,255,0.15);
+      transform: translateY(-2px);
+    }
+
+    .day-btn.selected {
+      background: linear-gradient(135deg, #8b5cf6, #6366f1);
+      border-color: #8b5cf6;
+      color: white;
+      transform: scale(1.05);
+    }
+
+    .day-btn.shabbat.selected {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-color: #f59e0b;
+    }
+
+    .day-icon {
+      font-size: 1.2rem;
+    }
+
+    .day-name {
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: none;
+    }
+
+    .day-short {
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .hint-text {
+      text-align: center;
+      color: rgba(255,255,255,0.6);
+      font-size: 0.85rem;
+      margin: 8px 0 0;
+    }
+
+    .selected-days-text {
+      text-align: center;
+      color: #8b5cf6;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin: 8px 0 0;
+    }
+
+    @media (min-width: 768px) {
+      .days-grid {
+        gap: 12px;
+      }
+
+      .day-btn {
+        padding: 14px 8px;
+      }
+
+      .day-name {
+        display: block;
+      }
+
+      .day-short {
+        display: none;
+      }
+    }
+
     .modal-actions {
       display: flex;
       gap: 12px;
@@ -1553,7 +1735,10 @@ export class TasksComponent {
   openCreateModal(): void {
     this.editingTask = null;
     this.taskForm = this.getEmptyForm();
+    this.isRecurring = false;
+    this.selectedDays = [];
     this.showModal = true;
+    this.cdr.markForCheck();
   }
 
   openEditModal(task: Task): void {
@@ -1565,14 +1750,29 @@ export class TasksComponent {
       coinReward: task.coinReward,
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : '',
       assignedToId: task.assignedToId || '',
-      isMustDo: task.isMustDo
+      isMustDo: task.isMustDo,
+      recurrence: task.recurrence
     };
+
+    // Set recurrence state
+    if (task.recurrence && task.recurrence.type === 'weekly') {
+      this.isRecurring = true;
+      this.selectedDays = task.recurrence.days || [];
+    } else {
+      this.isRecurring = false;
+      this.selectedDays = [];
+    }
+
     this.showModal = true;
+    this.cdr.markForCheck();
   }
 
   closeModal(): void {
     this.showModal = false;
     this.editingTask = null;
+    this.isRecurring = false;
+    this.selectedDays = [];
+    this.cdr.markForCheck();
   }
 
   saveTask(): void {
@@ -1585,7 +1785,13 @@ export class TasksComponent {
       coinReward: this.taskForm.coinReward || 10,
       dueDate: this.taskForm.dueDate || undefined,
       assignedToId: this.taskForm.assignedToId || undefined,
-      isMustDo: this.taskForm.isMustDo || false
+      isMustDo: this.taskForm.isMustDo || false,
+      recurrence: this.isRecurring && this.selectedDays.length > 0
+        ? {
+            type: 'weekly',
+            days: this.selectedDays
+          }
+        : undefined
     };
 
     if (this.editingTask) {
@@ -1647,6 +1853,53 @@ export class TasksComponent {
   isOverdue(task: Task): boolean {
     if (!task.dueDate || task.status === 'COMPLETED') return false;
     return new Date(task.dueDate) < new Date();
+  }
+
+  // Recurrence helper
+  isRecurring = false;
+  selectedDays: number[] = [];
+
+  toggleRecurrence(): void {
+    this.isRecurring = !this.isRecurring;
+    if (!this.isRecurring) {
+      this.selectedDays = [];
+      delete this.taskForm.recurrence;
+    } else {
+      this.taskForm.recurrence = {
+        type: 'weekly',
+        days: []
+      };
+    }
+    this.cdr.markForCheck();
+  }
+
+  toggleDay(day: number): void {
+    const index = this.selectedDays.indexOf(day);
+    if (index > -1) {
+      this.selectedDays.splice(index, 1);
+    } else {
+      this.selectedDays.push(day);
+    }
+    this.selectedDays.sort();
+
+    if (this.taskForm.recurrence) {
+      this.taskForm.recurrence.days = [...this.selectedDays];
+    }
+    this.cdr.markForCheck();
+  }
+
+  isDaySelected(day: number): boolean {
+    return this.selectedDays.includes(day);
+  }
+
+  getDayLabel(day: number): string {
+    const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+    return days[day];
+  }
+
+  getDayShort(day: number): string {
+    const days = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+    return days[day];
   }
 
   private getEmptyForm(): Partial<CreateTaskDto> {
