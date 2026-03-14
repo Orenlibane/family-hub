@@ -1,7 +1,7 @@
-import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef, ViewChildren, QueryList, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DragDropModule, CdkDragDrop, CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
+import { DragDropModule, CdkDragDrop, CdkDrag, CdkDropList, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { LogisticsStore, HouseholdStore } from '../../../core/stores';
 import { AuthService, ThemeService, UITheme } from '../../../core/services';
 import {
@@ -11,6 +11,7 @@ import {
   HEBREW_DAYS,
   CreateLogisticsDto
 } from '../../../core/models';
+import { User } from '../../../core/models';
 
 interface DropZone {
   category: LogisticsCategory;
@@ -22,36 +23,46 @@ interface DropZone {
   standalone: true,
   imports: [CommonModule, FormsModule, DragDropModule],
   template: `
-    <div class="logistics-page unicorn-theme" dir="rtl">
-      <!-- Magical Background -->
-      <div class="magical-bg">
-        <div class="clouds cloud-1"></div>
-        <div class="clouds cloud-2"></div>
-        <div class="rainbow-arc"></div>
-        <div class="sparkles"></div>
-        @for (i of [1,2,3,4,5]; track i) {
-          <div class="floating-magic" [style.animation-delay]="i * 1.5 + 's'" [style.left.%]="i * 18">
-            {{ ['✨', '🌸', '💫', '⭐', '🦋'][i-1] }}
-          </div>
+    <div class="logistics-page" [class.unicorn-theme]="currentTheme?.id === 'unicorn'" [class.cosmic-theme]="currentTheme?.id !== 'unicorn'" dir="rtl">
+      <!-- Background -->
+      <div class="theme-bg">
+        @if (currentTheme?.id === 'unicorn') {
+          <div class="clouds cloud-1"></div>
+          <div class="clouds cloud-2"></div>
+          <div class="rainbow-arc"></div>
+          <div class="sparkles"></div>
+          @for (i of [1,2,3,4,5]; track i) {
+            <div class="floating-magic" [style.animation-delay]="i * 1.5 + 's'" [style.left.%]="i * 18">
+              {{ ['✨', '🌸', '💫', '⭐', '🦋'][i-1] }}
+            </div>
+          }
+        } @else {
+          <div class="stars"></div>
+          <div class="nebula"></div>
+          @for (i of [1,2,3,4,5,6]; track i) {
+            <div class="floating-planet" [style.animation-delay]="i * 2 + 's'" [style.left.%]="i * 15">
+              {{ ['🪐', '⭐', '🌙', '✨', '🚀', '💫'][i-1] }}
+            </div>
+          }
         }
       </div>
 
       <div class="content-wrapper">
         <!-- Header -->
         <header class="page-header">
-          <div class="cloud-pill">
+          <div class="header-pill">
             <span class="header-icon">📋</span>
             <div>
               <h1>לוח פיקוד שבועי</h1>
               <p>מי עושה מה השבוע?</p>
             </div>
-            <span class="header-mascot">🦄</span>
+            <span class="header-mascot">{{ currentTheme?.id === 'unicorn' ? '🦄' : '🚀' }}</span>
           </div>
         </header>
 
-        <!-- Avatar Dock -->
-        <div class="avatar-dock">
-          <div class="dock-label">גרור אותי! 👇</div>
+        <!-- Avatar Dock - Make it a drop list source -->
+        <div class="avatar-dock" cdkDropList #avatarList="cdkDropList" [cdkDropListData]="membersArray" [cdkDropListConnectedTo]="dropListIds" cdkDropListSortingDisabled>
+          <div class="dock-label">גרור אותי לזון! 👇</div>
           <div class="avatars-row">
             @for (member of members$ | async; track member.id) {
               <div
@@ -60,20 +71,20 @@ interface DropZone {
                 [cdkDragData]="member"
               >
                 <div class="avatar-circle" [style.background]="getAvatarGradient(member.role)">
-                  <span class="avatar-initial">{{ member.name?.charAt(0) || '?' }}</span>
+                  <span class="avatar-emoji">{{ member.avatar || member.name?.charAt(0) || '?' }}</span>
                 </div>
                 <span class="avatar-name">{{ member.name }}</span>
                 <div class="avatar-glow"></div>
+
+                <!-- Drag Preview -->
+                <div *cdkDragPreview class="drag-preview">
+                  <div class="preview-avatar" [style.background]="getAvatarGradient(member.role)">
+                    {{ member.avatar || member.name?.charAt(0) || '?' }}
+                  </div>
+                  <span>{{ member.name }}</span>
+                </div>
               </div>
             }
-            <!-- Chinchilla placeholder -->
-            <div class="avatar-item pet" cdkDrag [cdkDragData]="{id: 'pet', name: 'שינשילות', role: 'PET'}">
-              <div class="avatar-circle pet-avatar">
-                <span class="avatar-initial">🐿️</span>
-              </div>
-              <span class="avatar-name">שינשילות</span>
-              <div class="avatar-glow"></div>
-            </div>
           </div>
         </div>
 
@@ -94,9 +105,11 @@ interface DropZone {
                   <div
                     class="drop-zone"
                     cdkDropList
+                    #dropList="cdkDropList"
+                    [id]="'drop-' + day + '-' + category"
                     [cdkDropListData]="{category: category, dayOfWeek: day}"
-                    (cdkDropListDropped)="onDrop($event)"
-                    [class.highlight]="isDragOver"
+                    [cdkDropListConnectedTo]="[avatarList]"
+                    (cdkDropListDropped)="onMemberDrop($event, day, category)"
                   >
                     <div class="zone-header">
                       <span>{{ getCategoryEmoji(category) }}</span>
@@ -104,11 +117,13 @@ interface DropZone {
                     </div>
                     <div class="zone-items">
                       @for (item of getItemsForZone(day, category); track item.id) {
-                        <div class="logistics-item">
+                        <div class="logistics-item" [class.has-assignee]="item.assignedTo">
                           @if (item.assignedTo) {
-                            <div class="item-avatar" [style.background]="getAvatarGradient(item.assignedTo.id === 'pet' ? 'PET' : 'KID')">
-                              {{ item.assignedTo.name?.charAt(0) || '?' }}
+                            <div class="item-avatar" [style.background]="getAvatarGradient(item.assignedTo.role || 'KID')">
+                              {{ item.assignedTo.avatar || item.assignedTo.name?.charAt(0) || '?' }}
                             </div>
+                          } @else {
+                            <div class="item-avatar unassigned">?</div>
                           }
                           <div class="item-content">
                             <span class="item-title">{{ item.title }}</span>
@@ -121,10 +136,16 @@ interface DropZone {
                           }
                         </div>
                       }
+                      @if (getItemsForZone(day, category).length === 0) {
+                        <div class="empty-zone">
+                          <span class="empty-icon">{{ currentTheme?.id === 'unicorn' ? '🌈' : '🌌' }}</span>
+                          <span>שחרר כאן</span>
+                        </div>
+                      }
                     </div>
                     @if (isAdult$ | async) {
                       <button class="add-item-btn" (click)="openAddModal(day, category)">
-                        <span>➕</span>
+                        <span>➕</span> הוסף
                       </button>
                     }
                   </div>
@@ -137,7 +158,7 @@ interface DropZone {
         <!-- Save Button -->
         @if ((hasUnsavedChanges$ | async) && (isAdult$ | async)) {
           <button class="save-fab" (click)="saveAll()" [disabled]="isSaving$ | async">
-            <span class="fab-icon">🪄</span>
+            <span class="fab-icon">{{ currentTheme?.id === 'unicorn' ? '🪄' : '🚀' }}</span>
             <span>סנכרן שבוע</span>
           </button>
         }
@@ -146,24 +167,24 @@ interface DropZone {
       <!-- Add Item Modal -->
       @if (showAddModal) {
         <div class="modal-overlay" (click)="closeAddModal()">
-          <div class="modal-content unicorn-modal" (click)="$event.stopPropagation()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
             <div class="modal-header">
-              <span class="modal-icon">✨</span>
+              <span class="modal-icon">{{ currentTheme?.id === 'unicorn' ? '✨' : '🌟' }}</span>
               <h2>הוסף פריט</h2>
-              <span class="modal-mascot">🦄</span>
+              <span class="modal-mascot">{{ currentTheme?.id === 'unicorn' ? '🦄' : '🚀' }}</span>
             </div>
             <form (ngSubmit)="addItem()" class="modal-form">
               <div class="form-group">
                 <label><span class="label-icon">📝</span> כותרת</label>
-                <input type="text" [(ngModel)]="itemForm.title" name="title" class="unicorn-input" required placeholder="מה לעשות?" />
+                <input type="text" [(ngModel)]="itemForm.title" name="title" class="form-input" required placeholder="מה לעשות?" />
               </div>
               <div class="form-group">
                 <label><span class="label-icon">🕐</span> שעה (אופציונלי)</label>
-                <input type="time" [(ngModel)]="itemForm.timeSlot" name="timeSlot" class="unicorn-input" />
+                <input type="time" [(ngModel)]="itemForm.timeSlot" name="timeSlot" class="form-input" />
               </div>
               <div class="form-group">
                 <label><span class="label-icon">📋</span> הערות (אופציונלי)</label>
-                <textarea [(ngModel)]="itemForm.notes" name="notes" class="unicorn-input textarea" placeholder="פרטים נוספים..."></textarea>
+                <textarea [(ngModel)]="itemForm.notes" name="notes" class="form-input textarea" placeholder="פרטים נוספים..."></textarea>
               </div>
               <div class="form-group">
                 <label><span class="label-icon">👤</span> שייך ל:</label>
@@ -185,7 +206,7 @@ interface DropZone {
                       (click)="itemForm.assignedToId = member.id"
                     >
                       <span class="assignee-avatar" [style.background]="getAvatarGradient(member.role)">
-                        {{ member.name?.charAt(0) }}
+                        {{ member.avatar || member.name?.charAt(0) }}
                       </span>
                       <span>{{ member.name }}</span>
                     </button>
@@ -195,7 +216,7 @@ interface DropZone {
               <div class="modal-actions">
                 <button type="button" class="btn-cancel" (click)="closeAddModal()">ביטול</button>
                 <button type="submit" class="btn-save" [disabled]="!itemForm.title.trim()">
-                  הוסף ✨
+                  הוסף {{ currentTheme?.id === 'unicorn' ? '✨' : '🚀' }}
                 </button>
               </div>
             </form>
@@ -213,8 +234,8 @@ interface DropZone {
       overflow-x: auto;
     }
 
-    /* Magical Unicorn Background */
-    .magical-bg {
+    /* ===== UNICORN THEME ===== */
+    .unicorn-theme .theme-bg {
       position: fixed;
       inset: 0;
       background: linear-gradient(180deg, #fce7f3 0%, #ddd6fe 50%, #c4b5fd 100%);
@@ -223,7 +244,7 @@ interface DropZone {
       overflow: hidden;
     }
 
-    .clouds {
+    .unicorn-theme .clouds {
       position: absolute;
       width: 100%;
       height: 100px;
@@ -231,23 +252,15 @@ interface DropZone {
       background-size: 400px 100px;
     }
 
-    .cloud-1 {
-      top: 5%;
-      animation: clouds-move 60s linear infinite;
-    }
-
-    .cloud-2 {
-      top: 15%;
-      animation: clouds-move 80s linear infinite reverse;
-      opacity: 0.7;
-    }
+    .unicorn-theme .cloud-1 { top: 5%; animation: clouds-move 60s linear infinite; }
+    .unicorn-theme .cloud-2 { top: 15%; animation: clouds-move 80s linear infinite reverse; opacity: 0.7; }
 
     @keyframes clouds-move {
       from { transform: translateX(0); }
       to { transform: translateX(-400px); }
     }
 
-    .rainbow-arc {
+    .unicorn-theme .rainbow-arc {
       position: absolute;
       top: -200px;
       left: 50%;
@@ -256,18 +269,13 @@ interface DropZone {
       height: 300px;
       border-radius: 0 0 300px 300px;
       background: linear-gradient(180deg,
-        rgba(255,0,0,0.2) 0%,
-        rgba(255,165,0,0.2) 16%,
-        rgba(255,255,0,0.2) 33%,
-        rgba(0,128,0,0.2) 50%,
-        rgba(0,0,255,0.2) 66%,
-        rgba(75,0,130,0.2) 83%,
-        rgba(238,130,238,0.2) 100%
+        rgba(255,0,0,0.2) 0%, rgba(255,165,0,0.2) 16%, rgba(255,255,0,0.2) 33%,
+        rgba(0,128,0,0.2) 50%, rgba(0,0,255,0.2) 66%, rgba(75,0,130,0.2) 83%, rgba(238,130,238,0.2) 100%
       );
       filter: blur(20px);
     }
 
-    .sparkles {
+    .unicorn-theme .sparkles {
       position: absolute;
       inset: 0;
       background-image:
@@ -279,16 +287,322 @@ interface DropZone {
       animation: sparkle 3s ease-in-out infinite;
     }
 
-    @keyframes sparkle {
-      0%, 100% { opacity: 0.5; }
-      50% { opacity: 1; }
-    }
-
-    .floating-magic {
+    .unicorn-theme .floating-magic {
       position: absolute;
       font-size: 2rem;
       animation: float-magic 6s ease-in-out infinite;
       top: 20%;
+    }
+
+    .unicorn-theme .header-pill {
+      background: rgba(255,255,255,0.8);
+      border: 2px solid rgba(168,85,247,0.2);
+      box-shadow: 0 8px 32px rgba(168,85,247,0.2);
+    }
+
+    .unicorn-theme .header-pill h1 { color: #7c3aed; }
+    .unicorn-theme .header-pill p { color: #a78bfa; }
+
+    .unicorn-theme .avatar-dock {
+      background: rgba(255,255,255,0.7);
+      box-shadow: 0 4px 20px rgba(168,85,247,0.15);
+    }
+
+    .unicorn-theme .dock-label { color: #7c3aed; }
+    .unicorn-theme .avatar-name { color: #6b21a8; }
+
+    .unicorn-theme .day-card {
+      background: rgba(255,255,255,0.5);
+      border: 2px solid rgba(255,255,255,0.8);
+      box-shadow: 0 4px 20px rgba(168,85,247,0.1);
+    }
+
+    .unicorn-theme .day-card.shabbat {
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(253,230,138,0.3));
+      border-color: rgba(251,191,36,0.5);
+    }
+
+    .unicorn-theme .day-header {
+      background: rgba(255,255,255,0.6);
+      border-bottom: 1px solid rgba(168,85,247,0.1);
+    }
+
+    .unicorn-theme .day-name { color: #6b21a8; }
+
+    .unicorn-theme .drop-zone {
+      background: rgba(255,255,255,0.5);
+      border: 2px dashed rgba(168,85,247,0.2);
+    }
+
+    .unicorn-theme .drop-zone.cdk-drop-list-dragging {
+      background: rgba(236,72,153,0.1);
+      border-color: rgba(236,72,153,0.5);
+      border-style: solid;
+    }
+
+    .unicorn-theme .zone-header {
+      background: rgba(168,85,247,0.1);
+      color: #6b21a8;
+    }
+
+    .unicorn-theme .add-item-btn {
+      background: rgba(168,85,247,0.1);
+      border: 1px dashed rgba(168,85,247,0.3);
+      color: #7c3aed;
+    }
+
+    .unicorn-theme .add-item-btn:hover {
+      background: rgba(168,85,247,0.2);
+      border-style: solid;
+    }
+
+    .unicorn-theme .save-fab {
+      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      box-shadow: 0 8px 30px rgba(236,72,153,0.4);
+    }
+
+    .unicorn-theme .modal-content {
+      background: linear-gradient(180deg, #fdf4ff, #faf5ff);
+      border: 2px solid rgba(168,85,247,0.2);
+    }
+
+    .unicorn-theme .modal-header {
+      background: linear-gradient(135deg, rgba(236,72,153,0.1), rgba(168,85,247,0.1));
+      border-bottom: 1px solid rgba(168,85,247,0.1);
+    }
+
+    .unicorn-theme .modal-header h2 { color: #6b21a8; }
+
+    .unicorn-theme .form-group label { color: #6b21a8; }
+
+    .unicorn-theme .form-input {
+      border: 2px solid rgba(168,85,247,0.2);
+    }
+
+    .unicorn-theme .form-input:focus {
+      border-color: #a855f7;
+      box-shadow: 0 0 20px rgba(168,85,247,0.2);
+    }
+
+    .unicorn-theme .assignee-btn {
+      border: 2px solid rgba(168,85,247,0.2);
+      color: #6b21a8;
+    }
+
+    .unicorn-theme .assignee-btn:hover {
+      border-color: rgba(168,85,247,0.4);
+      background: rgba(168,85,247,0.05);
+    }
+
+    .unicorn-theme .assignee-btn.selected {
+      border-color: #a855f7;
+      background: rgba(168,85,247,0.1);
+    }
+
+    .unicorn-theme .btn-cancel {
+      background: rgba(168,85,247,0.1);
+      color: #6b21a8;
+    }
+
+    .unicorn-theme .btn-cancel:hover { background: rgba(168,85,247,0.2); }
+
+    .unicorn-theme .btn-save {
+      background: linear-gradient(135deg, #ec4899, #a855f7);
+    }
+
+    /* ===== COSMIC THEME ===== */
+    .cosmic-theme .theme-bg {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #0f0c29 0%, #1a1a4e 50%, #24243e 100%);
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .cosmic-theme .stars {
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(2px 2px at 20% 30%, white, transparent),
+        radial-gradient(2px 2px at 40% 70%, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 60% 20%, white, transparent),
+        radial-gradient(2px 2px at 80% 50%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1px 1px at 10% 80%, white, transparent),
+        radial-gradient(2px 2px at 70% 85%, rgba(255,255,255,0.7), transparent),
+        radial-gradient(1px 1px at 90% 10%, white, transparent);
+      animation: twinkle 4s ease-in-out infinite;
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+
+    .cosmic-theme .nebula {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      top: -100px;
+      right: -100px;
+      background: radial-gradient(circle, rgba(139,92,246,0.3), rgba(59,130,246,0.2), transparent 70%);
+      filter: blur(60px);
+      animation: nebula-pulse 8s ease-in-out infinite;
+    }
+
+    @keyframes nebula-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.1); opacity: 0.7; }
+    }
+
+    .cosmic-theme .floating-planet {
+      position: absolute;
+      font-size: 2rem;
+      animation: float-planet 8s ease-in-out infinite;
+      top: 15%;
+    }
+
+    @keyframes float-planet {
+      0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.6; }
+      50% { transform: translateY(-20px) rotate(5deg); opacity: 1; }
+    }
+
+    .cosmic-theme .header-pill {
+      background: rgba(30, 27, 75, 0.8);
+      border: 2px solid rgba(139, 92, 246, 0.3);
+      box-shadow: 0 8px 32px rgba(139, 92, 246, 0.3);
+    }
+
+    .cosmic-theme .header-pill h1 { color: #c4b5fd; }
+    .cosmic-theme .header-pill p { color: #a78bfa; }
+
+    .cosmic-theme .avatar-dock {
+      background: rgba(30, 27, 75, 0.7);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2);
+    }
+
+    .cosmic-theme .dock-label { color: #c4b5fd; }
+    .cosmic-theme .avatar-name { color: #a78bfa; }
+
+    .cosmic-theme .day-card {
+      background: rgba(30, 27, 75, 0.6);
+      border: 2px solid rgba(139, 92, 246, 0.2);
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+    }
+
+    .cosmic-theme .day-card.shabbat {
+      background: linear-gradient(180deg, rgba(30, 27, 75, 0.7), rgba(251, 191, 36, 0.1));
+      border-color: rgba(251, 191, 36, 0.3);
+    }
+
+    .cosmic-theme .day-header {
+      background: rgba(139, 92, 246, 0.1);
+      border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .cosmic-theme .day-name { color: #c4b5fd; }
+
+    .cosmic-theme .drop-zone {
+      background: rgba(30, 27, 75, 0.5);
+      border: 2px dashed rgba(139, 92, 246, 0.3);
+    }
+
+    .cosmic-theme .drop-zone.cdk-drop-list-dragging {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: rgba(59, 130, 246, 0.5);
+      border-style: solid;
+    }
+
+    .cosmic-theme .zone-header {
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+    }
+
+    .cosmic-theme .logistics-item {
+      background: rgba(30, 27, 75, 0.8);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .cosmic-theme .item-title { color: #e0e7ff; }
+    .cosmic-theme .item-time { color: #a78bfa; }
+
+    .cosmic-theme .empty-zone { color: #a78bfa; }
+
+    .cosmic-theme .add-item-btn {
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px dashed rgba(139, 92, 246, 0.3);
+      color: #c4b5fd;
+    }
+
+    .cosmic-theme .add-item-btn:hover {
+      background: rgba(139, 92, 246, 0.25);
+      border-style: solid;
+    }
+
+    .cosmic-theme .save-fab {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      box-shadow: 0 8px 30px rgba(59, 130, 246, 0.4);
+    }
+
+    .cosmic-theme .modal-content {
+      background: linear-gradient(180deg, #1e1b4b, #312e81);
+      border: 2px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .cosmic-theme .modal-header {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .cosmic-theme .modal-header h2 { color: #c4b5fd; }
+
+    .cosmic-theme .form-group label { color: #c4b5fd; }
+
+    .cosmic-theme .form-input {
+      background: rgba(30, 27, 75, 0.8);
+      border: 2px solid rgba(139, 92, 246, 0.3);
+      color: #e0e7ff;
+    }
+
+    .cosmic-theme .form-input:focus {
+      border-color: #8b5cf6;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+    }
+
+    .cosmic-theme .form-input::placeholder { color: #6366f1; }
+
+    .cosmic-theme .assignee-btn {
+      background: rgba(30, 27, 75, 0.8);
+      border: 2px solid rgba(139, 92, 246, 0.3);
+      color: #c4b5fd;
+    }
+
+    .cosmic-theme .assignee-btn:hover {
+      border-color: rgba(139, 92, 246, 0.5);
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    .cosmic-theme .assignee-btn.selected {
+      border-color: #8b5cf6;
+      background: rgba(139, 92, 246, 0.2);
+    }
+
+    .cosmic-theme .btn-cancel {
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+    }
+
+    .cosmic-theme .btn-cancel:hover { background: rgba(139, 92, 246, 0.25); }
+
+    .cosmic-theme .btn-save {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    }
+
+    /* ===== SHARED STYLES ===== */
+    @keyframes sparkle {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
     }
 
     @keyframes float-magic {
@@ -296,7 +610,6 @@ interface DropZone {
       50% { transform: translateY(-30px) rotate(10deg); opacity: 1; }
     }
 
-    /* Content */
     .content-wrapper {
       position: relative;
       z-index: 10;
@@ -304,26 +617,21 @@ interface DropZone {
       padding-bottom: 100px;
     }
 
-    /* Header */
-    .page-header {
-      margin-bottom: 20px;
-    }
+    .page-header { margin-bottom: 20px; }
 
-    .cloud-pill {
+    .header-pill {
       display: flex;
       align-items: center;
       gap: 16px;
-      background: rgba(255,255,255,0.8);
       backdrop-filter: blur(12px);
       border-radius: 30px;
       padding: 16px 24px;
-      box-shadow: 0 8px 32px rgba(168,85,247,0.2);
       position: relative;
     }
 
     .header-icon { font-size: 2rem; }
-    .cloud-pill h1 { font-size: 1.5rem; font-weight: 700; color: #7c3aed; margin: 0; }
-    .cloud-pill p { color: #a78bfa; margin: 2px 0 0; font-size: 0.9rem; }
+    .header-pill h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .header-pill p { margin: 2px 0 0; font-size: 0.9rem; }
     .header-mascot {
       position: absolute;
       left: 24px;
@@ -338,17 +646,14 @@ interface DropZone {
 
     /* Avatar Dock */
     .avatar-dock {
-      background: rgba(255,255,255,0.7);
       backdrop-filter: blur(12px);
       border-radius: 24px;
       padding: 16px 20px;
       margin-bottom: 20px;
-      box-shadow: 0 4px 20px rgba(168,85,247,0.15);
     }
 
     .dock-label {
       text-align: center;
-      color: #7c3aed;
       font-size: 0.85rem;
       font-weight: 600;
       margin-bottom: 12px;
@@ -372,14 +677,8 @@ interface DropZone {
     }
 
     .avatar-item:active { cursor: grabbing; }
-
-    .avatar-item:hover {
-      transform: scale(1.1);
-    }
-
-    .avatar-item:hover .avatar-glow {
-      opacity: 1;
-    }
+    .avatar-item:hover { transform: scale(1.1); }
+    .avatar-item:hover .avatar-glow { opacity: 1; }
 
     .avatar-circle {
       width: 50px;
@@ -395,13 +694,10 @@ interface DropZone {
       box-shadow: 0 4px 15px rgba(0,0,0,0.15);
     }
 
-    .pet-avatar {
-      background: linear-gradient(135deg, #f59e0b, #d97706) !important;
-    }
+    .avatar-emoji { font-size: 1.4rem; }
 
     .avatar-name {
       font-size: 0.75rem;
-      color: #6b21a8;
       font-weight: 600;
     }
 
@@ -409,20 +705,39 @@ interface DropZone {
       position: absolute;
       inset: -5px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(168,85,247,0.4), transparent 70%);
+      background: radial-gradient(circle, rgba(139,92,246,0.4), transparent 70%);
       opacity: 0;
       transition: opacity 0.2s;
       z-index: -1;
     }
 
-    .cdk-drag-preview {
-      transform: scale(1.15) !important;
-      box-shadow: 0 8px 30px rgba(168,85,247,0.4);
+    /* Drag Preview */
+    .drag-preview {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      font-weight: 600;
+      color: #374151;
     }
 
-    .cdk-drag-placeholder {
-      opacity: 0.4;
+    .preview-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1rem;
     }
+
+    .cdk-drag-preview { z-index: 1000 !important; }
+    .cdk-drag-placeholder { opacity: 0.4; }
+    .cdk-drag-animating { transition: transform 250ms cubic-bezier(0, 0, 0.2, 1); }
 
     /* Week Grid */
     .week-grid {
@@ -434,17 +749,9 @@ interface DropZone {
 
     .day-card {
       flex: 0 0 280px;
-      background: rgba(255,255,255,0.5);
       backdrop-filter: blur(12px);
       border-radius: 24px;
-      border: 2px solid rgba(255,255,255,0.8);
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(168,85,247,0.1);
-    }
-
-    .day-card.shabbat {
-      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(253,230,138,0.3));
-      border-color: rgba(251,191,36,0.5);
     }
 
     .day-header {
@@ -452,12 +759,10 @@ interface DropZone {
       align-items: center;
       gap: 10px;
       padding: 14px 16px;
-      background: rgba(255,255,255,0.6);
-      border-bottom: 1px solid rgba(168,85,247,0.1);
     }
 
     .day-icon { font-size: 1.3rem; }
-    .day-name { font-weight: 700; color: #6b21a8; font-size: 1rem; }
+    .day-name { font-weight: 700; font-size: 1rem; }
     .shabbat-icon { margin-right: auto; font-size: 1.2rem; }
 
     .day-zones {
@@ -468,19 +773,10 @@ interface DropZone {
     }
 
     .drop-zone {
-      background: rgba(255,255,255,0.5);
       border-radius: 16px;
-      border: 2px dashed rgba(168,85,247,0.2);
       padding: 10px;
       min-height: 80px;
       transition: all 0.2s;
-    }
-
-    .drop-zone.highlight,
-    .drop-zone.cdk-drop-list-dragging {
-      background: rgba(236,72,153,0.1);
-      border-color: rgba(236,72,153,0.5);
-      border-style: solid;
     }
 
     .zone-header {
@@ -489,10 +785,8 @@ interface DropZone {
       gap: 8px;
       margin-bottom: 8px;
       padding: 4px 8px;
-      background: rgba(168,85,247,0.1);
       border-radius: 10px;
       font-size: 0.8rem;
-      color: #6b21a8;
       font-weight: 600;
     }
 
@@ -500,7 +794,20 @@ interface DropZone {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-height: 40px;
     }
+
+    .empty-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      opacity: 0.6;
+      font-size: 0.8rem;
+    }
+
+    .empty-icon { font-size: 1.5rem; margin-bottom: 4px; }
 
     .logistics-item {
       display: flex;
@@ -523,6 +830,11 @@ interface DropZone {
       font-size: 0.75rem;
       font-weight: 700;
       flex-shrink: 0;
+    }
+
+    .item-avatar.unassigned {
+      background: #9ca3af;
+      font-size: 0.85rem;
     }
 
     .item-content {
@@ -559,30 +871,21 @@ interface DropZone {
       transition: all 0.2s;
     }
 
-    .logistics-item:hover .item-remove {
-      opacity: 1;
-    }
-
-    .item-remove:hover {
-      background: rgba(239,68,68,0.2);
-    }
+    .logistics-item:hover .item-remove { opacity: 1; }
+    .item-remove:hover { background: rgba(239,68,68,0.2); }
 
     .add-item-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
       width: 100%;
       padding: 8px;
-      background: rgba(168,85,247,0.1);
-      border: 1px dashed rgba(168,85,247,0.3);
       border-radius: 10px;
-      color: #7c3aed;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       cursor: pointer;
       transition: all 0.2s;
       margin-top: 8px;
-    }
-
-    .add-item-btn:hover {
-      background: rgba(168,85,247,0.2);
-      border-style: solid;
     }
 
     /* Save FAB */
@@ -594,21 +897,18 @@ interface DropZone {
       align-items: center;
       gap: 10px;
       padding: 16px 28px;
-      background: linear-gradient(135deg, #ec4899, #8b5cf6);
       border: none;
       border-radius: 30px;
       color: white;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 8px 30px rgba(236,72,153,0.4);
       transition: all 0.2s;
       z-index: 50;
     }
 
     .save-fab:hover:not(:disabled) {
       transform: translateY(-3px);
-      box-shadow: 0 12px 40px rgba(236,72,153,0.5);
     }
 
     .save-fab:disabled {
@@ -640,15 +940,13 @@ interface DropZone {
       padding: 20px;
     }
 
-    .unicorn-modal {
+    .modal-content {
       width: 100%;
       max-width: 450px;
       max-height: 90vh;
       overflow-y: auto;
-      background: linear-gradient(180deg, #fdf4ff, #faf5ff);
       border-radius: 24px;
-      border: 2px solid rgba(168,85,247,0.2);
-      box-shadow: 0 20px 60px rgba(168,85,247,0.3);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     }
 
     .modal-header {
@@ -656,37 +954,28 @@ interface DropZone {
       align-items: center;
       gap: 12px;
       padding: 20px 24px;
-      background: linear-gradient(135deg, rgba(236,72,153,0.1), rgba(168,85,247,0.1));
-      border-bottom: 1px solid rgba(168,85,247,0.1);
     }
 
     .modal-icon { font-size: 1.8rem; }
-    .modal-header h2 { flex: 1; color: #6b21a8; font-size: 1.3rem; margin: 0; }
+    .modal-header h2 { flex: 1; font-size: 1.3rem; margin: 0; }
     .modal-mascot { font-size: 1.5rem; animation: bounce 2s ease-in-out infinite; }
 
     .modal-form { padding: 20px 24px; }
     .form-group { margin-bottom: 18px; }
-    .form-group label { display: block; color: #6b21a8; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+    .form-group label { display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
     .label-icon { margin-left: 6px; }
 
-    .unicorn-input {
+    .form-input {
       width: 100%;
       padding: 12px 16px;
       background: white;
-      border: 2px solid rgba(168,85,247,0.2);
       border-radius: 14px;
-      color: #374151;
       font-size: 1rem;
       outline: none;
       transition: all 0.2s;
     }
 
-    .unicorn-input:focus {
-      border-color: #a855f7;
-      box-shadow: 0 0 20px rgba(168,85,247,0.2);
-    }
-
-    .unicorn-input::placeholder { color: #9ca3af; }
+    .form-input::placeholder { color: #9ca3af; }
     .textarea { min-height: 70px; resize: vertical; }
 
     .assignee-grid {
@@ -702,22 +991,10 @@ interface DropZone {
       gap: 6px;
       padding: 12px 10px;
       background: white;
-      border: 2px solid rgba(168,85,247,0.2);
       border-radius: 14px;
-      color: #6b21a8;
       font-size: 0.8rem;
       cursor: pointer;
       transition: all 0.2s;
-    }
-
-    .assignee-btn:hover {
-      border-color: rgba(168,85,247,0.4);
-      background: rgba(168,85,247,0.05);
-    }
-
-    .assignee-btn.selected {
-      border-color: #a855f7;
-      background: rgba(168,85,247,0.1);
     }
 
     .assignee-avatar {
@@ -736,39 +1013,27 @@ interface DropZone {
       display: flex;
       gap: 12px;
       padding-top: 16px;
-      border-top: 1px solid rgba(168,85,247,0.1);
+      border-top: 1px solid rgba(0,0,0,0.1);
     }
 
-    .btn-cancel {
+    .btn-cancel, .btn-save {
       flex: 1;
       padding: 14px;
-      background: rgba(168,85,247,0.1);
       border: none;
       border-radius: 14px;
-      color: #6b21a8;
       font-size: 1rem;
       cursor: pointer;
       transition: all 0.2s;
     }
-
-    .btn-cancel:hover { background: rgba(168,85,247,0.2); }
 
     .btn-save {
-      flex: 1;
-      padding: 14px;
-      background: linear-gradient(135deg, #ec4899, #a855f7);
-      border: none;
-      border-radius: 14px;
       color: white;
-      font-size: 1rem;
       font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
     }
 
     .btn-save:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(168,85,247,0.4);
+      box-shadow: 0 8px 25px rgba(139,92,246,0.4);
     }
 
     .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -796,9 +1061,12 @@ export class LogisticsComponent {
   hebrewDays = HEBREW_DAYS;
   categories: LogisticsCategory[] = ['PICKUP', 'ACTIVITY', 'SHOPPING', 'CHORE'];
 
-  currentTheme: UITheme = this.themeService.getCurrentTheme();
+  currentTheme: UITheme | null = null;
   showAddModal = false;
-  isDragOver = false;
+  membersArray: User[] = [];
+
+  // Generate drop list IDs for connecting
+  dropListIds: string[] = [];
 
   itemForm = {
     title: '',
@@ -812,6 +1080,13 @@ export class LogisticsComponent {
   private itemsCache: LogisticsItem[] = [];
 
   constructor() {
+    // Generate all drop list IDs
+    for (let day = 0; day <= 6; day++) {
+      for (const cat of this.categories) {
+        this.dropListIds.push(`drop-${day}-${cat}`);
+      }
+    }
+
     this.logisticsStore.loadItems();
     this.householdStore.loadHousehold();
 
@@ -822,6 +1097,11 @@ export class LogisticsComponent {
 
     this.items$.subscribe(items => {
       this.itemsCache = items;
+      this.cdr.markForCheck();
+    });
+
+    this.members$.subscribe(members => {
+      this.membersArray = members;
       this.cdr.markForCheck();
     });
   }
@@ -855,14 +1135,12 @@ export class LogisticsComponent {
     );
   }
 
-  onDrop(event: CdkDragDrop<DropZone>): void {
-    const member = event.item.data;
-    const target = event.container.data;
-
-    if (!member || !target) return;
+  onMemberDrop(event: CdkDragDrop<any>, dayOfWeek: number, category: LogisticsCategory): void {
+    const member = event.item.data as User;
+    if (!member) return;
 
     // Get items in this zone
-    const zoneItems = this.getItemsForZone(target.dayOfWeek, target.category);
+    const zoneItems = this.getItemsForZone(dayOfWeek, category);
 
     if (zoneItems.length > 0) {
       // Assign member to first unassigned item, or the first item
@@ -870,6 +1148,18 @@ export class LogisticsComponent {
       this.logisticsStore.assignItem(targetItem.id, member.id).subscribe({
         next: () => this.cdr.markForCheck(),
         error: (err) => console.error('Error assigning item:', err)
+      });
+    } else {
+      // No items in zone - create a quick task assigned to this member
+      const dto: CreateLogisticsDto = {
+        title: `משימה של ${member.name}`,
+        category,
+        dayOfWeek,
+        assignedToId: member.id
+      };
+      this.logisticsStore.createItem(dto).subscribe({
+        next: () => this.cdr.markForCheck(),
+        error: (err) => console.error('Error creating item:', err)
       });
     }
   }
@@ -921,7 +1211,6 @@ export class LogisticsComponent {
   }
 
   saveAll(): void {
-    // Items are saved automatically via API, but this can trigger a bulk sync
     this.cdr.markForCheck();
   }
 }
