@@ -7,6 +7,7 @@ import adminRoutes from './admin.routes.js';
 import pollsRoutes from './polls.routes.js';
 import chatRoutes from './chat.routes.js';
 import logisticsRoutes from './logistics.routes.js';
+import setupRoutes from './setup.routes.js';
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use('/api/admin', adminRoutes);
 router.use('/api/polls', pollsRoutes);
 router.use('/api/chat', chatRoutes);
 router.use('/api/logistics', logisticsRoutes);
+router.use('/api/setup', setupRoutes);
 
 // Health check
 router.get('/health', (_req, res) => {

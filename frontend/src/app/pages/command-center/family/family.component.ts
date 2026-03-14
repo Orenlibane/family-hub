@@ -211,6 +211,9 @@ import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/se
               <div class="form-group">
                 <label><span class="label-icon">🎭</span> תפקיד</label>
                 <select [(ngModel)]="editForm.role" name="role" class="cosmic-input" [disabled]="selectedMember?.id === (user$ | async)?.id">
+                  @if ((user$ | async)?.role === 'ADMIN') {
+                    <option value="ADMIN">👑 אדמין</option>
+                  }
                   <option value="ADULT">👨‍👩‍👧 הורה</option>
                   <option value="KID">🧒 ילד</option>
                 </select>
@@ -1383,7 +1386,7 @@ export class FamilyComponent {
   // Edit modal
   showEditModal = false;
   selectedMember: any = null;
-  editForm = { name: '', role: 'KID' as 'ADULT' | 'KID', avatar: '', avatarUrl: '' };
+  editForm = { name: '', role: 'KID' as 'ADMIN' | 'ADULT' | 'KID', avatar: '', avatarUrl: '' };
   avatarPreview: string | null = null;
 
   // Create child modal
