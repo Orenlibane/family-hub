@@ -44,6 +44,28 @@ enum RedemptionStatus {
   FULFILLED
 }
 
+// ==================== POLL ENUMS ====================
+enum PollStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum PollCategory {
+  MOVIE_NIGHT
+  FOOD_CHOICE
+  ACTIVITY
+  FAMILY_OUTING
+  OTHER
+}
+
+// ==================== LOGISTICS ENUMS ====================
+enum LogisticsCategory {
+  PICKUP      // איסוף מסגרות
+  ACTIVITY    // חוגים
+  SHOPPING    // קניות וסידורים
+  CHORE       // מטלות
+}
+
 // ==================== HOUSEHOLD ====================
 model Household {
   id        String   @id @default(cuid())
@@ -59,6 +81,11 @@ model Household {
   rewards     Reward[]
   events      CalendarEvent[]
   moodLogs    MoodLog[]
+
+  // New feature relations
+  polls           Poll[]
+  chatMessages    ChatMessage[]
+  logisticsItems  LogisticsItem[]
 
   @@index([inviteCode])
 }
@@ -90,6 +117,14 @@ model User {
   redemptions     Redemption[]
   moodLogs        MoodLog[]
   pushSubscriptions PushSubscription[]
+
+  // New feature relations
+  childAuth           ChildAuth?
+  pollsCreated        Poll[]          @relation("PollCreator")
+  votes               Vote[]
+  chatMessages        ChatMessage[]
+  logisticsAssigned   LogisticsItem[] @relation("LogisticsAssignee")
+  logisticsCreated    LogisticsItem[] @relation("LogisticsCreator")
 
   @@index([householdId])
   @@index([email])
@@ -239,4 +274,126 @@ model PushSubscription {
 
   @@index([userId])
   @@index([endpoint])
+}
+
+// ==================== CHILD AUTHENTICATION ====================
+// For PIN-based child account authentication (no email required)
+model ChildAuth {
+  id        String   @id @default(cuid())
+  username  String
+  pinHash   String   // Hashed 4-6 digit PIN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([username])
+}
+
+// ==================== POLL ====================
+model Poll {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  category    PollCategory @default(OTHER)
+  status      PollStatus   @default(ACTIVE)
+  closesAt    DateTime?    // Optional auto-close time
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User @relation("PollCreator", fields: [createdById], references: [id])
+
+  options PollOption[]
+  votes   Vote[]
+
+  @@index([householdId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== POLL OPTION ====================
+model PollOption {
+  id        String   @id @default(cuid())
+  text      String
+  emoji     String?  // Optional emoji for visual appeal
+  createdAt DateTime @default(now())
+
+  // Relations
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  votes Vote[]
+
+  @@index([pollId])
+}
+
+// ==================== VOTE ====================
+model Vote {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  pollId String
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pollId]) // One vote per user per poll
+  @@index([pollId])
+  @@index([userId])
+}
+
+// ==================== CHAT MESSAGE ====================
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  senderId String
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@index([createdAt])
+}
+
+// ==================== LOGISTICS ITEM ====================
+model LogisticsItem {
+  id        String             @id @default(cuid())
+  title     String
+  category  LogisticsCategory
+  dayOfWeek Int                // 0=Sunday, 6=Saturday
+  timeSlot  String?            // e.g., "08:00", "15:30"
+  notes     String?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  // Relations
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  assignedToId String?
+  assignedTo   User?   @relation("LogisticsAssignee", fields: [assignedToId], references: [id])
+
+  createdById String
+  createdBy   User @relation("LogisticsCreator", fields: [createdById], references: [id])
+
+  @@index([householdId])
+  @@index([dayOfWeek])
+  @@index([assignedToId])
 }

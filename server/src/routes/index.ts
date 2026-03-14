@@ -3,6 +3,10 @@ import authRoutes from './auth.routes.js';
 import tasksRoutes from './tasks.routes.js';
 import householdRoutes from './household.routes.js';
 import rewardsRoutes from './rewards.routes.js';
+import adminRoutes from './admin.routes.js';
+import pollsRoutes from './polls.routes.js';
+import chatRoutes from './chat.routes.js';
+import logisticsRoutes from './logistics.routes.js';
 
 const router = Router();
 
@@ -13,6 +17,10 @@ router.use('/auth', authRoutes);
 router.use('/api/tasks', tasksRoutes);
 router.use('/api/household', householdRoutes);
 router.use('/api/rewards', rewardsRoutes);
+router.use('/api/admin', adminRoutes);
+router.use('/api/polls', pollsRoutes);
+router.use('/api/chat', chatRoutes);
+router.use('/api/logistics', logisticsRoutes);
 
 // Health check
 router.get('/health', (_req, res) => {

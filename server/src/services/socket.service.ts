@@ -151,6 +151,15 @@ const setupEventHandlers = (socket: Socket<ClientToServerEvents, ServerToClientE
     // Update last seen timestamp (could store in Redis for production)
     console.log(`[Socket] Heartbeat from ${socket.data.userId}`);
   });
+
+  // Chat typing indicator
+  socket.on('chat:typing', ({ isTyping }) => {
+    // Broadcast to household (except sender)
+    socket.to(`household:${socket.data.householdId}`).emit('chat:typing', {
+      userId: socket.data.userId,
+      isTyping
+    });
+  });
 };
 
 // Helper functions to emit events from routes

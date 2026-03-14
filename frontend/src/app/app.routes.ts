@@ -46,6 +46,18 @@ export const routes: Routes = [
       {
         path: 'settings',
         loadComponent: () => import('./pages/command-center/settings/settings.component').then(m => m.SettingsComponent)
+      },
+      {
+        path: 'voting',
+        loadComponent: () => import('./pages/command-center/voting/voting.component').then(m => m.VotingComponent)
+      },
+      {
+        path: 'chat',
+        loadComponent: () => import('./pages/command-center/chat/chat.component').then(m => m.ChatComponent)
+      },
+      {
+        path: 'logistics',
+        loadComponent: () => import('./pages/command-center/logistics/logistics.component').then(m => m.LogisticsComponent)
       }
     ]
   },
@@ -71,6 +83,14 @@ export const routes: Routes = [
       {
         path: 'avatar',
         loadComponent: () => import('./pages/playground/avatar/avatar.component').then(m => m.AvatarComponent)
+      },
+      {
+        path: 'voting',
+        loadComponent: () => import('./pages/command-center/voting/voting.component').then(m => m.VotingComponent)
+      },
+      {
+        path: 'chat',
+        loadComponent: () => import('./pages/command-center/chat/chat.component').then(m => m.ChatComponent)
       }
     ]
   },

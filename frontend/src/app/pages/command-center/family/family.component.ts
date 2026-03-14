@@ -1,12 +1,13 @@
 import { Component, ChangeDetectionStrategy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HouseholdStore } from '../../../core/stores';
-import { AuthService, ThemeService, UITheme } from '../../../core/services';
+import { AuthService, ThemeService, UITheme, ApiService } from '../../../core/services';
 
 @Component({
   selector: 'app-family',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="family-page" dir="rtl">
       <!-- Animated Stars Background -->
@@ -106,6 +107,11 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
           <div class="section-header">
             <span class="section-icon">🚀</span>
             <h3>רשימת צוות</h3>
+            @if (isAdmin$ | async) {
+              <button class="add-child-btn" (click)="openCreateChildModal()">
+                <span>👶</span> הוסף ילד
+              </button>
+            }
           </div>
           <div class="members-list">
             @for (member of members$ | async; track member.id) {
@@ -133,6 +139,14 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
                     <span class="mood">{{ getMoodEmoji(member.currentMood) }}</span>
                   }
                 </div>
+                @if ((isAdmin$ | async) && member.id !== (user$ | async)?.id) {
+                  <div class="member-actions">
+                    <button class="action-btn edit" (click)="openEditModal(member)" title="ערוך">✏️</button>
+                    @if (member.role === 'KID') {
+                      <button class="action-btn reset" (click)="openResetPinModal(member)" title="אפס קוד">🔑</button>
+                    }
+                  </div>
+                }
               </div>
             }
           </div>
@@ -143,6 +157,130 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       @if (showCopyToast) {
         <div class="toast">
           <span>✅</span> הקישור הועתק!
+        </div>
+      }
+
+      <!-- Edit Member Modal -->
+      @if (showEditModal) {
+        <div class="modal-overlay" (click)="closeEditModal()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <span class="modal-icon">✏️</span>
+              <h2>עריכת חבר צוות</h2>
+              <span class="modal-mascot">🐿️</span>
+            </div>
+            <form (ngSubmit)="saveEdit()" class="modal-form">
+              <div class="form-group">
+                <label><span class="label-icon">👤</span> שם</label>
+                <input type="text" [(ngModel)]="editForm.name" name="name" class="cosmic-input" required />
+              </div>
+              <div class="form-group">
+                <label><span class="label-icon">🎭</span> תפקיד</label>
+                <select [(ngModel)]="editForm.role" name="role" class="cosmic-input">
+                  <option value="ADULT">👨‍👩‍👧 הורה</option>
+                  <option value="KID">🧒 ילד</option>
+                </select>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn-cancel" (click)="closeEditModal()">ביטול</button>
+                <button type="submit" class="btn-save" [disabled]="isSaving">
+                  {{ isSaving ? '...שומר' : 'שמור' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      }
+
+      <!-- Create Child Modal -->
+      @if (showCreateChildModal) {
+        <div class="modal-overlay" (click)="closeCreateChildModal()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <span class="modal-icon">👶</span>
+              <h2>הוספת ילד חדש</h2>
+              <span class="modal-mascot">🐿️</span>
+            </div>
+            <form (ngSubmit)="createChild()" class="modal-form">
+              <div class="form-group">
+                <label><span class="label-icon">👤</span> שם</label>
+                <input type="text" [(ngModel)]="createChildForm.name" name="name" class="cosmic-input" required placeholder="שם הילד" />
+              </div>
+              <div class="form-group">
+                <label><span class="label-icon">📛</span> שם משתמש</label>
+                <input type="text" [(ngModel)]="createChildForm.username" name="username" class="cosmic-input" required placeholder="שם משתמש להתחברות" />
+              </div>
+              <div class="form-group">
+                <label><span class="label-icon">🔐</span> קוד PIN (4-6 ספרות)</label>
+                <input type="password" [(ngModel)]="createChildForm.pin" name="pin" class="cosmic-input pin-input" required pattern="[0-9]{4,6}" maxlength="6" placeholder="****" />
+                <div class="pin-dots">
+                  @for (i of [0,1,2,3,4,5]; track i) {
+                    <span class="dot" [class.filled]="createChildForm.pin.length > i">●</span>
+                  }
+                </div>
+              </div>
+              <div class="form-group">
+                <label><span class="label-icon">🔐</span> אימות קוד PIN</label>
+                <input type="password" [(ngModel)]="createChildForm.confirmPin" name="confirmPin" class="cosmic-input pin-input" required pattern="[0-9]{4,6}" maxlength="6" placeholder="****" />
+              </div>
+              @if (createChildForm.pin && createChildForm.confirmPin && createChildForm.pin !== createChildForm.confirmPin) {
+                <div class="form-error">❌ הקודים לא תואמים</div>
+              }
+              <div class="modal-actions">
+                <button type="button" class="btn-cancel" (click)="closeCreateChildModal()">ביטול</button>
+                <button type="submit" class="btn-save" [disabled]="isSaving || !isCreateChildFormValid()">
+                  {{ isSaving ? '...יוצר' : 'צור חשבון' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      }
+
+      <!-- Reset PIN Modal -->
+      @if (showResetPinModal) {
+        <div class="modal-overlay" (click)="closeResetPinModal()">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <span class="modal-icon">🔑</span>
+              <h2>איפוס קוד PIN</h2>
+              <span class="modal-mascot">🐿️</span>
+            </div>
+            <div class="reset-info">
+              <p>איפוס קוד עבור: <strong>{{ selectedMember?.name }}</strong></p>
+            </div>
+            <form (ngSubmit)="resetPin()" class="modal-form">
+              <div class="form-group">
+                <label><span class="label-icon">🔐</span> קוד PIN חדש (4-6 ספרות)</label>
+                <input type="password" [(ngModel)]="resetPinForm.newPin" name="newPin" class="cosmic-input pin-input" required pattern="[0-9]{4,6}" maxlength="6" placeholder="****" />
+                <div class="pin-dots">
+                  @for (i of [0,1,2,3,4,5]; track i) {
+                    <span class="dot" [class.filled]="resetPinForm.newPin.length > i">●</span>
+                  }
+                </div>
+              </div>
+              <div class="form-group">
+                <label><span class="label-icon">🔐</span> אימות קוד PIN</label>
+                <input type="password" [(ngModel)]="resetPinForm.confirmPin" name="confirmPin" class="cosmic-input pin-input" required pattern="[0-9]{4,6}" maxlength="6" placeholder="****" />
+              </div>
+              @if (resetPinForm.newPin && resetPinForm.confirmPin && resetPinForm.newPin !== resetPinForm.confirmPin) {
+                <div class="form-error">❌ הקודים לא תואמים</div>
+              }
+              <div class="modal-actions">
+                <button type="button" class="btn-cancel" (click)="closeResetPinModal()">ביטול</button>
+                <button type="submit" class="btn-save" [disabled]="isSaving || !isResetPinFormValid()">
+                  {{ isSaving ? '...מאפס' : 'אפס קוד' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      }
+
+      <!-- Success Toast -->
+      @if (showSuccessToast) {
+        <div class="toast success">
+          <span>✅</span> {{ successMessage }}
         </div>
       }
     </div>
@@ -780,6 +918,248 @@ import { AuthService, ThemeService, UITheme } from '../../../core/services';
       }
     }
 
+    /* Admin Actions */
+    .add-child-btn {
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .add-child-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16,185,129,0.4);
+    }
+
+    .member-actions {
+      display: flex;
+      gap: 8px;
+      margin-right: 12px;
+    }
+
+    .action-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+
+    .action-btn.edit {
+      background: rgba(59,130,246,0.2);
+    }
+
+    .action-btn.edit:hover {
+      background: rgba(59,130,246,0.4);
+      transform: scale(1.1);
+    }
+
+    .action-btn.reset {
+      background: rgba(245,158,11,0.2);
+    }
+
+    .action-btn.reset:hover {
+      background: rgba(245,158,11,0.4);
+      transform: scale(1.1);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-content {
+      width: 100%;
+      max-width: 450px;
+      background: linear-gradient(135deg, #1a0a2e, #0a1a2e);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.1);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 24px;
+      background: rgba(107, 33, 168, 0.2);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .modal-icon {
+      font-size: 1.8rem;
+    }
+
+    .modal-header h2 {
+      flex: 1;
+      color: white;
+      font-size: 1.3rem;
+      margin: 0;
+    }
+
+    .modal-mascot {
+      font-size: 1.5rem;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .modal-form {
+      padding: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+
+    .label-icon {
+      margin-left: 6px;
+    }
+
+    .cosmic-input {
+      width: 100%;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      color: white;
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .cosmic-input:focus {
+      border-color: #6b21a8;
+      box-shadow: 0 0 20px rgba(107, 33, 168, 0.3);
+    }
+
+    .cosmic-input::placeholder {
+      color: rgba(255,255,255,0.3);
+    }
+
+    .pin-input {
+      text-align: center;
+      letter-spacing: 8px;
+      font-size: 1.5rem;
+    }
+
+    .pin-dots {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .dot {
+      font-size: 1.2rem;
+      color: rgba(255,255,255,0.2);
+      transition: all 0.2s;
+    }
+
+    .dot.filled {
+      color: #10b981;
+      text-shadow: 0 0 10px rgba(16,185,129,0.5);
+    }
+
+    .form-error {
+      color: #ef4444;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 8px;
+      background: rgba(239,68,68,0.1);
+      border-radius: 8px;
+      margin-bottom: 16px;
+    }
+
+    .reset-info {
+      padding: 16px 24px;
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .reset-info p {
+      margin: 0;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .reset-info strong {
+      color: white;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .btn-cancel {
+      flex: 1;
+      padding: 14px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 14px;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255,255,255,0.15);
+    }
+
+    .btn-save {
+      flex: 1;
+      padding: 14px;
+      background: linear-gradient(135deg, #6b21a8, #db2777);
+      border: none;
+      border-radius: 14px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-save:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(107, 33, 168, 0.4);
+    }
+
+    .btn-save:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toast.success {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .household-card {
@@ -823,15 +1203,33 @@ export class FamilyComponent {
   private readonly householdStore = inject(HouseholdStore);
   private readonly authService = inject(AuthService);
   private readonly themeService = inject(ThemeService);
+  private readonly apiService = inject(ApiService);
   private readonly cdr = inject(ChangeDetectorRef);
 
   household$ = this.authService.household$;
   members$ = this.householdStore.members$;
   memberCount$ = this.householdStore.memberCount$;
   user$ = this.authService.user$;
+  isAdmin$ = this.authService.isAdmin$;
 
   currentTheme: UITheme = this.themeService.getCurrentTheme();
   showCopyToast = false;
+  showSuccessToast = false;
+  successMessage = '';
+  isSaving = false;
+
+  // Edit modal
+  showEditModal = false;
+  selectedMember: any = null;
+  editForm = { name: '', role: 'KID' as 'ADULT' | 'KID' };
+
+  // Create child modal
+  showCreateChildModal = false;
+  createChildForm = { name: '', username: '', pin: '', confirmPin: '' };
+
+  // Reset PIN modal
+  showResetPinModal = false;
+  resetPinForm = { newPin: '', confirmPin: '' };
 
   constructor() {
     this.householdStore.loadHousehold();
@@ -839,6 +1237,136 @@ export class FamilyComponent {
       this.currentTheme = theme;
       this.cdr.markForCheck();
     });
+  }
+
+  // Edit Modal Methods
+  openEditModal(member: any): void {
+    this.selectedMember = member;
+    this.editForm = { name: member.name, role: member.role };
+    this.showEditModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeEditModal(): void {
+    this.showEditModal = false;
+    this.selectedMember = null;
+    this.cdr.markForCheck();
+  }
+
+  saveEdit(): void {
+    if (!this.selectedMember || this.isSaving) return;
+
+    this.isSaving = true;
+    this.apiService.patch(`/api/admin/users/${this.selectedMember.id}`, this.editForm)
+      .subscribe({
+        next: () => {
+          this.householdStore.loadHousehold();
+          this.closeEditModal();
+          this.showSuccess('המשתמש עודכן בהצלחה');
+          this.isSaving = false;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          console.error('Error updating user:', err);
+          this.isSaving = false;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  // Create Child Modal Methods
+  openCreateChildModal(): void {
+    this.createChildForm = { name: '', username: '', pin: '', confirmPin: '' };
+    this.showCreateChildModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeCreateChildModal(): void {
+    this.showCreateChildModal = false;
+    this.cdr.markForCheck();
+  }
+
+  isCreateChildFormValid(): boolean {
+    return this.createChildForm.name.length > 0 &&
+           this.createChildForm.username.length >= 2 &&
+           this.createChildForm.pin.length >= 4 &&
+           this.createChildForm.pin.length <= 6 &&
+           this.createChildForm.pin === this.createChildForm.confirmPin;
+  }
+
+  createChild(): void {
+    if (!this.isCreateChildFormValid() || this.isSaving) return;
+
+    this.isSaving = true;
+    this.apiService.post('/api/admin/users/child', {
+      name: this.createChildForm.name,
+      username: this.createChildForm.username,
+      pin: this.createChildForm.pin
+    }).subscribe({
+      next: () => {
+        this.householdStore.loadHousehold();
+        this.closeCreateChildModal();
+        this.showSuccess('חשבון הילד נוצר בהצלחה');
+        this.isSaving = false;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Error creating child:', err);
+        this.isSaving = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  // Reset PIN Modal Methods
+  openResetPinModal(member: any): void {
+    this.selectedMember = member;
+    this.resetPinForm = { newPin: '', confirmPin: '' };
+    this.showResetPinModal = true;
+    this.cdr.markForCheck();
+  }
+
+  closeResetPinModal(): void {
+    this.showResetPinModal = false;
+    this.selectedMember = null;
+    this.cdr.markForCheck();
+  }
+
+  isResetPinFormValid(): boolean {
+    return this.resetPinForm.newPin.length >= 4 &&
+           this.resetPinForm.newPin.length <= 6 &&
+           this.resetPinForm.newPin === this.resetPinForm.confirmPin;
+  }
+
+  resetPin(): void {
+    if (!this.selectedMember || !this.isResetPinFormValid() || this.isSaving) return;
+
+    this.isSaving = true;
+    this.apiService.post(`/api/admin/users/${this.selectedMember.id}/reset-pin`, {
+      newPin: this.resetPinForm.newPin
+    }).subscribe({
+      next: () => {
+        this.closeResetPinModal();
+        this.showSuccess('קוד ה-PIN אופס בהצלחה');
+        this.isSaving = false;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        console.error('Error resetting PIN:', err);
+        this.isSaving = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private showSuccess(message: string): void {
+    this.successMessage = message;
+    this.showSuccessToast = true;
+    this.cdr.markForCheck();
+    setTimeout(() => {
+      this.showSuccessToast = false;
+      this.cdr.markForCheck();
+    }, 3000);
   }
 
   isUnicornTheme(): boolean {

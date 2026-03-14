@@ -2,7 +2,7 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
 import { environment } from '../../../environments/environment';
-import { Task, Mood } from '../models';
+import { Task, Mood, Poll, ChatMessage, LogisticsItem } from '../models';
 
 // Event types
 export interface TaskUpdateEvent {
@@ -29,6 +29,52 @@ export interface NotificationEvent {
   data?: unknown;
 }
 
+// Poll events
+export interface PollCreatedEvent {
+  poll: Poll;
+}
+
+export interface PollVotedEvent {
+  pollId: string;
+  results: Poll;
+}
+
+export interface PollClosedEvent {
+  poll: Poll;
+}
+
+// Chat events
+export interface ChatMessageEvent {
+  message: ChatMessage;
+}
+
+export interface ChatTypingEvent {
+  userId: string;
+  isTyping: boolean;
+}
+
+// Logistics events
+export interface LogisticsUpdateEvent {
+  item: LogisticsItem;
+  action: 'created' | 'updated' | 'deleted';
+}
+
+export interface LogisticsSyncedEvent {
+  items: LogisticsItem[];
+}
+
+// Member events
+export interface MemberUpdateEvent {
+  member: {
+    id: string;
+    name: string;
+    role: string;
+    famCoins?: number;
+    username?: string;
+  };
+  action: 'added' | 'updated' | 'removed';
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -44,11 +90,27 @@ export class SocketService implements OnDestroy {
   private readonly _coinChange$ = new Subject<CoinEvent>();
   private readonly _moodChange$ = new Subject<MoodEvent>();
   private readonly _notification$ = new Subject<NotificationEvent>();
+  private readonly _pollCreated$ = new Subject<Poll>();
+  private readonly _pollVoted$ = new Subject<PollVotedEvent>();
+  private readonly _pollClosed$ = new Subject<Poll>();
+  private readonly _chatMessage$ = new Subject<ChatMessage>();
+  private readonly _chatTyping$ = new Subject<ChatTypingEvent>();
+  private readonly _logisticsUpdate$ = new Subject<LogisticsUpdateEvent>();
+  private readonly _logisticsSynced$ = new Subject<LogisticsSyncedEvent>();
+  private readonly _memberUpdate$ = new Subject<MemberUpdateEvent>();
 
   readonly taskUpdate$ = this._taskUpdate$.asObservable();
   readonly coinChange$ = this._coinChange$.asObservable();
   readonly moodChange$ = this._moodChange$.asObservable();
   readonly notification$ = this._notification$.asObservable();
+  readonly pollCreated$ = this._pollCreated$.asObservable();
+  readonly pollVoted$ = this._pollVoted$.asObservable();
+  readonly pollClosed$ = this._pollClosed$.asObservable();
+  readonly chatMessage$ = this._chatMessage$.asObservable();
+  readonly chatTyping$ = this._chatTyping$.asObservable();
+  readonly logisticsUpdate$ = this._logisticsUpdate$.asObservable();
+  readonly logisticsSynced$ = this._logisticsSynced$.asObservable();
+  readonly memberUpdate$ = this._memberUpdate$.asObservable();
 
   connect(token: string): void {
     if (this.socket?.connected) {
@@ -123,6 +185,58 @@ export class SocketService implements OnDestroy {
     this.socket.on('notification', (data: NotificationEvent) => {
       this._notification$.next(data);
     });
+
+    // Poll events
+    this.socket.on('poll:created', (poll: Poll) => {
+      this._pollCreated$.next(poll);
+    });
+
+    this.socket.on('poll:voted', (data: PollVotedEvent) => {
+      this._pollVoted$.next(data);
+    });
+
+    this.socket.on('poll:closed', (poll: Poll) => {
+      this._pollClosed$.next(poll);
+    });
+
+    // Chat events
+    this.socket.on('chat:message', (message: ChatMessage) => {
+      this._chatMessage$.next(message);
+    });
+
+    this.socket.on('chat:typing', (data: ChatTypingEvent) => {
+      this._chatTyping$.next(data);
+    });
+
+    // Logistics events
+    this.socket.on('logistics:created', (item: LogisticsItem) => {
+      this._logisticsUpdate$.next({ item, action: 'created' });
+    });
+
+    this.socket.on('logistics:updated', (item: LogisticsItem) => {
+      this._logisticsUpdate$.next({ item, action: 'updated' });
+    });
+
+    this.socket.on('logistics:deleted', (data: { id: string }) => {
+      this._logisticsUpdate$.next({ item: { id: data.id } as LogisticsItem, action: 'deleted' });
+    });
+
+    this.socket.on('logistics:synced', (data: LogisticsSyncedEvent) => {
+      this._logisticsSynced$.next(data);
+    });
+
+    // Member events
+    this.socket.on('member:added', (member: any) => {
+      this._memberUpdate$.next({ member, action: 'added' });
+    });
+
+    this.socket.on('member:updated', (member: any) => {
+      this._memberUpdate$.next({ member, action: 'updated' });
+    });
+
+    this.socket.on('member:removed', (userId: string) => {
+      this._memberUpdate$.next({ member: { id: userId, name: '', role: '' }, action: 'removed' });
+    });
   }
 
   /**
@@ -170,6 +284,13 @@ export class SocketService implements OnDestroy {
     this.socket?.emit('household:join', { householdId });
   }
 
+  /**
+   * Send chat typing indicator
+   */
+  sendTyping(isTyping: boolean): void {
+    this.socket?.emit('chat:typing', { isTyping });
+  }
+
   disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
@@ -184,5 +305,13 @@ export class SocketService implements OnDestroy {
     this._coinChange$.complete();
     this._moodChange$.complete();
     this._notification$.complete();
+    this._pollCreated$.complete();
+    this._pollVoted$.complete();
+    this._pollClosed$.complete();
+    this._chatMessage$.complete();
+    this._chatTyping$.complete();
+    this._logisticsUpdate$.complete();
+    this._logisticsSynced$.complete();
+    this._memberUpdate$.complete();
   }
 }

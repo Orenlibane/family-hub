@@ -34,6 +34,22 @@ export interface ServerToClientEvents {
   'mood:updated': (data: { userId: string; mood: string }) => void;
   'mood:family': (data: { mood: string }) => void;
   'notification': (data: { type: string; message: string; data?: unknown }) => void;
+  // Poll events
+  'poll:created': (poll: unknown) => void;
+  'poll:voted': (data: { pollId: string; results: unknown }) => void;
+  'poll:closed': (poll: unknown) => void;
+  // Chat events
+  'chat:message': (message: unknown) => void;
+  'chat:typing': (data: { userId: string; isTyping: boolean }) => void;
+  // Logistics events
+  'logistics:created': (item: unknown) => void;
+  'logistics:updated': (item: unknown) => void;
+  'logistics:deleted': (data: { id: string }) => void;
+  'logistics:synced': (data: { items: unknown[] }) => void;
+  // Member events
+  'member:added': (member: unknown) => void;
+  'member:updated': (member: unknown) => void;
+  'member:removed': (userId: string) => void;
 }
 
 export interface ClientToServerEvents {
@@ -41,6 +57,8 @@ export interface ClientToServerEvents {
   'mood:update': (data: { mood: string; note?: string }, callback: (response: { success: boolean }) => void) => void;
   'presence:heartbeat': () => void;
   'household:join': (data: { householdId: string }) => void;
+  // Chat events
+  'chat:typing': (data: { isTyping: boolean }) => void;
 }
 
 export interface SocketData {
