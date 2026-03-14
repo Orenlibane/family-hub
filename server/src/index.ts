@@ -45,7 +45,8 @@ app.use(routes);
 
 // Serve static frontend in production
 if (!config.isDev) {
-  const frontendPath = join(__dirname, '../../public');
+  // In Docker: __dirname = /app/dist, so ../public = /app/public
+  const frontendPath = join(__dirname, '../public');
   app.use(express.static(frontendPath));
 
   // SPA fallback - serve index.html for all non-API routes
