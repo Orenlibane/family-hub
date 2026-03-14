@@ -162,6 +162,14 @@ import { Router } from '@angular/router';
             <!-- Join Family with Invite Code -->
             <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border-2 border-purple-100">
               <p class="text-gray-700 font-semibold text-center mb-3">יש לך קוד הזמנה?</p>
+
+              @if (showInviteCodeSaved) {
+                <div class="bg-green-50 border-2 border-green-300 rounded-xl p-4 mb-3 text-center">
+                  <p class="text-green-700 font-bold mb-2">✅ קוד ההזמנה נשמר!</p>
+                  <p class="text-green-600 text-sm">עכשיו לחץ על "התחברות עם Google" למעלה</p>
+                </div>
+              }
+
               <div class="flex gap-2">
                 <input
                   type="text"
@@ -171,6 +179,15 @@ import { Router } from '@angular/router';
                   placeholder="הזן קוד הזמנה"
                   (keyup.enter)="joinWithInviteCode()"
                 />
+                @if (inviteCode.trim()) {
+                  <button
+                    (click)="clearInviteCode()"
+                    class="px-4 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all"
+                    title="נקה"
+                  >
+                    ✕
+                  </button>
+                }
                 <button
                   (click)="joinWithInviteCode()"
                   [disabled]="!inviteCode.trim()"
@@ -178,7 +195,7 @@ import { Router } from '@angular/router';
                          hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200
                          disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  🚀
+                  💾
                 </button>
               </div>
             </div>
@@ -212,8 +229,13 @@ export class LoginComponent {
   kidLoginError = '';
   isLoggingIn = false;
   inviteCode = '';
+  showInviteCodeSaved = false;
 
   loginWithGoogle(): void {
+    // If no invite code entered, clear any old codes from localStorage
+    if (!this.inviteCode.trim()) {
+      localStorage.removeItem('pendingInviteCode');
+    }
     this.authService.loginWithGoogle();
   }
 
@@ -241,7 +263,25 @@ export class LoginComponent {
   joinWithInviteCode(): void {
     const code = this.inviteCode.trim();
     if (code) {
-      this.router.navigate(['/join', code]);
+      // Store invite code in localStorage
+      localStorage.setItem('pendingInviteCode', code);
+
+      // Show success message
+      this.showInviteCodeSaved = true;
+      this.cdr.markForCheck();
+
+      // Auto-hide message after 10 seconds
+      setTimeout(() => {
+        this.showInviteCodeSaved = false;
+        this.cdr.markForCheck();
+      }, 10000);
     }
+  }
+
+  clearInviteCode(): void {
+    this.inviteCode = '';
+    this.showInviteCodeSaved = false;
+    localStorage.removeItem('pendingInviteCode');
+    this.cdr.markForCheck();
   }
 }
