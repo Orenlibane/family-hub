@@ -1422,10 +1422,11 @@ export class FamilyComponent {
     if (!this.selectedMember || this.isSaving) return;
 
     this.isSaving = true;
-    const payload: any = { name: this.editForm.name, role: this.editForm.role };
-    if (this.editForm.avatarUrl) {
-      payload.avatarUrl = this.editForm.avatarUrl;
-    }
+    const payload: any = {
+      name: this.editForm.name,
+      role: this.editForm.role,
+      avatarUrl: this.editForm.avatarUrl || null
+    };
     this.apiService.patch(`/api/admin/users/${this.selectedMember.id}`, payload)
       .subscribe({
         next: () => {

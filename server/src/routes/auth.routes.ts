@@ -7,6 +7,7 @@ import {
   findOrCreateUser,
   generateToken
 } from '../services/auth.service.js';
+import { authenticateChild } from '../services/child-auth.service.js';
 
 const router = Router();
 
@@ -157,6 +158,59 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[Auth] Get me error:', error);
     res.status(500).json({ message: 'Failed to get user' });
+  }
+});
+
+/**
+ * POST /auth/child/login
+ * Login child with username and PIN
+ */
+router.post('/child/login', async (req: Request, res: Response) => {
+  try {
+    const { username, pin } = req.body;
+
+    if (!username || !pin) {
+      return res.status(400).json({ message: 'Username and PIN are required' });
+    }
+
+    // Authenticate child
+    const { user, household } = await authenticateChild(username, pin);
+
+    // Generate JWT
+    const token = generateToken({
+      userId: user.id,
+      householdId: household.id,
+      role: user.role
+    });
+
+    // Set HTTP-only cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: config.nodeEnv === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar,
+        avatarUrl: user.avatarUrl,
+        famCoins: user.famCoins
+      },
+      household: {
+        id: household.id,
+        name: household.name,
+        inviteCode: household.inviteCode
+      },
+      token
+    });
+  } catch (error: any) {
+    console.error('[Auth] Child login error:', error);
+    res.status(401).json({ message: error.message || 'Invalid credentials' });
   }
 });
 
