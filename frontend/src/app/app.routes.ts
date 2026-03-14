@@ -17,11 +17,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/join/join.component').then(m => m.JoinComponent)
   },
 
-  // Adult routes (Command Center) - with layout wrapper
+  // Command Center - accessible to all authenticated users (Playground on hold)
   {
     path: 'command-center',
     loadComponent: () => import('./layouts/command-center-layout.component').then(m => m.CommandCenterLayoutComponent),
-    canActivate: [authGuard, adultGuard],
+    canActivate: [authGuard],
     children: [
       {
         path: '',
