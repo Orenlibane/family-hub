@@ -1428,6 +1428,7 @@ export class FamilyComponent {
       avatar: this.editForm.avatar || null,
       avatarUrl: this.editForm.avatarUrl || null
     };
+
     this.apiService.patch(`/api/admin/users/${this.selectedMember.id}`, payload)
       .subscribe({
         next: () => {
@@ -1550,6 +1551,7 @@ export class FamilyComponent {
         const result = e.target?.result as string;
         this.avatarPreview = result;
         this.editForm.avatarUrl = result;
+        this.editForm.avatar = ''; // Clear emoji when uploading image
         this.cdr.markForCheck();
       };
       reader.readAsDataURL(file);
@@ -1559,6 +1561,7 @@ export class FamilyComponent {
   clearAvatar(): void {
     this.avatarPreview = null;
     this.editForm.avatarUrl = '';
+    this.editForm.avatar = ''; // Clear both fields
     this.cdr.markForCheck();
   }
 

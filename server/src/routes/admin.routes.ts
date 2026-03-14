@@ -22,8 +22,8 @@ const createChildSchema = z.object({
 const updateMemberSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   role: z.enum(['ADULT', 'KID']).optional(),
-  avatar: z.string().max(100).optional(), // Emoji avatar
-  avatarUrl: z.string().max(500000).optional() // Support base64 images
+  avatar: z.string().max(100).nullable().optional(), // Emoji avatar
+  avatarUrl: z.string().max(500000).nullable().optional() // Support base64 images
 });
 
 const resetPinSchema = z.object({
